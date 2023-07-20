@@ -17,6 +17,7 @@ package pgbk
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -191,6 +192,23 @@ func (b *Backend) runChangeFeed(ctx context.Context) error {
 	return trace.Wrap(err)
 }
 
+type wal2jsonValue struct {
+	Name  string  `json:"name"`
+	Type  string  `json:"type"`
+	Value *string `json:"value"`
+}
+type wal2jsonMessage struct {
+	Action   string          `json:"action"`
+	Schema   string          `json:"schema"`
+	Table    string          `json:"table"`
+	Columns  []wal2jsonValue `json:"columns"`
+	Identity []wal2jsonValue `json:"identity"`
+
+	Transactional bool   `json:"transactional"`
+	Prefix        string `json:"prefix"`
+	Content       string `json:"content"`
+}
+
 // pollChangeFeed will poll the change feed and emit any fetched events, if any.
 // It returns the count of received/emitted events.
 func (b *Backend) pollChangeFeed(ctx context.Context, conn *pgx.Conn, slotName string) (int64, error) {
@@ -198,32 +216,76 @@ func (b *Backend) pollChangeFeed(ctx context.Context, conn *pgx.Conn, slotName s
 	defer cancel()
 
 	t0 := time.Now()
-
-	// TODO(espadolini): it might be better to do the JSON deserialization
-	// (potentially with additional checks for the schema) on the auth side
 	rows, _ := conn.Query(ctx,
-		`WITH jdata AS (
-  SELECT
-    data::jsonb AS data
-  FROM pg_logical_slot_get_changes($1, NULL, $2,
-    'format-version', '2', 'add-tables', 'public.kv', 'include-transaction', 'false')
-)
-SELECT
-  data->>'action',
-  decode(COALESCE(data->'columns'->0->>'value', data->'identity'->0->>'value'), 'hex'),
-  decode(data->'columns'->1->>'value', 'hex'),
-  (data->'columns'->2->>'value')::timestamptz,
-  (data->'columns'->3->>'value')::uuid
-FROM jdata`, slotName, b.cfg.ChangeFeedBatchSize)
+		"SELECT data FROM pg_logical_slot_get_changes($1, NULL, $2,"+
+			" 'format-version', '2', 'add-tables', 'public.kv', 'include-transaction', 'false')",
+		slotName, b.cfg.ChangeFeedBatchSize)
 
-	var action string
-	var key []byte
-	var value []byte
-	var expires zeronull.Timestamptz
-	var revision zeronull.UUID
-	tag, err := pgx.ForEachRow(rows, []any{&action, &key, &value, &expires, &revision}, func() error {
-		switch action {
+	var data string
+	tag, err := pgx.ForEachRow(rows, []any{&data}, func() error {
+		var m wal2jsonMessage
+		if err := json.Unmarshal([]byte(data), &m); err != nil {
+			return trace.Wrap(err)
+		}
+
+		switch m.Action {
+		case "I", "U", "D", "T":
+			if m.Schema != "public" || m.Table != "kv" {
+				b.log.WithFields(logrus.Fields{
+					"schema": m.Schema,
+					"table":  m.Table,
+				}).Debug("Received WAL message for unexpected table (should not happen).")
+				return nil
+			}
+		}
+
+		switch m.Action {
 		case "I", "U":
+			if len(m.Columns) != 4 ||
+				m.Columns[0].Name != "key" || m.Columns[0].Type != "bytea" || m.Columns[0].Value == nil ||
+				m.Columns[1].Name != "value" || m.Columns[1].Type != "bytea" || m.Columns[1].Value == nil ||
+				m.Columns[2].Name != "expires" || m.Columns[2].Type != "timestamp with time zone" ||
+				m.Columns[3].Name != "revision" || m.Columns[3].Type != "uuid" || m.Columns[3].Value == nil {
+				return trace.BadParameter("invalid schema on insert/update")
+			}
+		}
+
+		switch m.Action {
+		case "I":
+			if len(m.Identity) != 0 {
+				return trace.BadParameter("unexpected identity on insert")
+			}
+		case "U", "D":
+			if len(m.Identity) != 1 ||
+				m.Identity[0].Name != "key" || m.Identity[0].Type != "bytea" || m.Identity[0].Value == nil {
+				return trace.BadParameter("invalid schema on update/delete")
+			}
+			if m.Action == "U" && *m.Columns[0].Value != *m.Identity[0].Value {
+				return trace.BadParameter("item renaming is not supported")
+			}
+		}
+
+		switch m.Action {
+		case "I", "U":
+			key, err := hex.DecodeString(*m.Columns[0].Value)
+			if err != nil {
+				return trace.Wrap(err, "decoding key")
+			}
+			value, err := hex.DecodeString(*m.Columns[1].Value)
+			if err != nil {
+				return trace.Wrap(err, "decoding value")
+			}
+			var expires zeronull.Timestamptz
+			if m.Columns[2].Value != nil {
+				if err := expires.Scan(*m.Columns[2].Value); err != nil {
+					return trace.Wrap(err, "scanning expires")
+				}
+			}
+			revision, err := uuid.Parse(*m.Columns[3].Value)
+			if err != nil {
+				return trace.Wrap(err, "parsing revision")
+			}
+
 			b.buf.Emit(backend.Event{
 				Type: types.OpPut,
 				Item: backend.Item{
@@ -232,8 +294,13 @@ FROM jdata`, slotName, b.cfg.ChangeFeedBatchSize)
 					Expires: time.Time(expires),
 				},
 			})
+			_ = revision
 			return nil
 		case "D":
+			key, err := hex.DecodeString(*m.Identity[0].Value)
+			if err != nil {
+				return trace.Wrap(err, "decoding key")
+			}
 			b.buf.Emit(backend.Event{
 				Type: types.OpDelete,
 				Item: backend.Item{
@@ -242,7 +309,7 @@ FROM jdata`, slotName, b.cfg.ChangeFeedBatchSize)
 			})
 			return nil
 		case "M":
-			b.log.Debug("Received WAL message.")
+			b.log.WithField("prefix", m.Prefix).Debug("Received WAL message.")
 			return nil
 		case "B", "C":
 			b.log.Debug("Received transaction message in change feed (should not happen).")
@@ -256,7 +323,7 @@ FROM jdata`, slotName, b.cfg.ChangeFeedBatchSize)
 			// broken state
 			return trace.BadParameter("received truncate WAL message, can't continue")
 		default:
-			return trace.BadParameter("received unknown WAL message %q", action)
+			return trace.BadParameter("received unknown WAL message %q", m.Action)
 		}
 	})
 	if err != nil {

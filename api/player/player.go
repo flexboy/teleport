@@ -3,6 +3,8 @@ package player
 
 import (
 	"context"
+	"os"
+	"time"
 
 	"github.com/gravitational/teleport/api/types/events"
 	"github.com/gravitational/trace"
@@ -51,9 +53,12 @@ func New(cfg *Config) (*Player, error) {
 		clk = clockwork.NewRealClock()
 	}
 
-	log := cfg.Log
+	var log logrus.FieldLogger = cfg.Log
 	if log == nil {
-		log = logrus.New().WithField(trace.Component, "player")
+		l := logrus.New().WithField(trace.Component, "player")
+		l.Logger.SetOutput(os.Stdout) // TODO remove
+		l.Logger.SetLevel(logrus.DebugLevel)
+		log = l
 	}
 
 	p := &Player{
@@ -75,6 +80,7 @@ func New(cfg *Config) (*Player, error) {
 
 func (p *Player) stream() {
 	eventsC, errC := p.streamer.StreamSessionEvents(context.TODO(), p.sessionID, 0)
+	lastDelay := int64(0)
 	for {
 		select {
 		case err := <-errC:
@@ -89,19 +95,23 @@ func (p *Player) stream() {
 				return
 			}
 
-			p.log.Debug("maybe waiting while paused")
 			if err := p.waitWhilePaused(); err != nil {
 				p.log.Warn(err)
 				close(p.emit)
 				return
 			}
-			p.log.Debug("unpaused, now playing")
 
-			// TODO: add time delay
+			delay := getDelay(evt)
+			if delay > 0 && delay > lastDelay {
+				// TODO: scale delay based on playback speed
+				p.applyDelay(time.Duration(delay-lastDelay) * time.Millisecond)
+				lastDelay = delay
+			}
 
 			p.log.Debugf("playing %v (%v)", evt.GetType(), evt.GetID())
 			select {
 			case p.emit <- evt:
+				p.log.Debugf("event %v was played", evt.GetID())
 			default:
 				p.log.Warnf("dropped event %v, reader too slow", evt.GetID())
 			}
@@ -142,6 +152,15 @@ func (p *Player) Play() error {
 	return nil
 }
 
+// applyDelay "sleeps" for d in a manner that
+// can be canceled
+func (p *Player) applyDelay(d time.Duration) {
+	select {
+	// TODO: add cancelable case
+	case <-p.clock.After(d):
+	}
+}
+
 func (p *Player) setPlaying(play bool) {
 	// Inspired by "Rethinking Classical Concurrency Patterns"
 	// by Bryan C. Mills (GopherCon 2018)
@@ -180,6 +199,17 @@ func (p *Player) waitWhilePaused() error {
 // expressed as milliseconds since the start of the session.
 func (p *Player) LastPlayed() int64 {
 	return 0
+}
+
+func getDelay(e events.AuditEvent) int64 {
+	switch x := e.(type) {
+	case *events.DesktopRecording:
+		return x.DelayMilliseconds
+	case *events.SessionPrint:
+		return x.DelayMilliseconds
+	default:
+		return int64(0)
+	}
 }
 
 // TODO: set playback speed

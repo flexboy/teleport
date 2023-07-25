@@ -16,12 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// test cases:
-// - streams N events
-// - streams N events with proper timing
-// - can be canceled mid stream
-// - can be paused and resumed
-
 func TestBasicStream(t *testing.T) {
 	clk := clockwork.NewFakeClock()
 	p, err := player.New(&player.Config{
@@ -78,14 +72,6 @@ func TestAppliesTiming(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// var count atomic.Int64
-	// go func() {
-	// 	for range p.C() {
-	// 		println("received event!!")
-	// 		count.Add(1)
-	// 	}
-	// }()
-
 	require.NoError(t, p.Play())
 
 	clk.BlockUntil(1) // player is now waiting to emit event 0
@@ -111,6 +97,33 @@ func TestAppliesTiming(t *testing.T) {
 	// channel should be closed
 	_, ok := <-p.C()
 	require.False(t, ok, "player should be closed")
+}
+
+func TestClose(t *testing.T) {
+	clk := clockwork.NewFakeClock()
+	p, err := player.New(&player.Config{
+		Clock:     clk,
+		SessionID: "test-session",
+		Streamer:  &simpleStreamer{count: 2, delay: 1000},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, p.Play())
+
+	clk.BlockUntil(1) // player is now waiting to emit event 0
+
+	// advance to next event (player will have emitted event 0
+	// and will be waiting to emit event 1)
+	clk.Advance(1001 * time.Millisecond)
+	clk.BlockUntil(1)
+	evt := <-p.C()
+	require.Equal(t, int64(0), evt.GetIndex())
+
+	require.NoError(t, p.Close())
+
+	// channel should have been closed
+	_, ok := <-p.C()
+	require.False(t, ok, "player channel should have been closed")
 }
 
 // simpleStreamer streams a fake session that contains

@@ -3,6 +3,7 @@ package player
 
 import (
 	"context"
+	"errors"
 	"os"
 	"time"
 
@@ -26,6 +27,8 @@ type Player struct {
 	// the player transitions from paused to playing,
 	// or nil if the player is already playing
 	playPause chan chan struct{}
+
+	done chan struct{}
 }
 
 type Streamer interface {
@@ -68,6 +71,7 @@ func New(cfg *Config) (*Player, error) {
 		streamer:  cfg.Streamer,
 		emit:      make(chan events.AuditEvent, 64),
 		playPause: make(chan chan struct{}, 1),
+		done:      make(chan struct{}),
 	}
 
 	// start in a paused state
@@ -78,11 +82,18 @@ func New(cfg *Config) (*Player, error) {
 	return p, nil
 }
 
+// errClosed is an internal error that is used to signal
+// that the player has been closed
+var errClosed = errors.New("player closed")
+
 func (p *Player) stream() {
 	eventsC, errC := p.streamer.StreamSessionEvents(context.TODO(), p.sessionID, 0)
 	lastDelay := int64(0)
 	for {
 		select {
+		case <-p.done:
+			close(p.emit)
+			return
 		case err := <-errC:
 			// TODO: figure out how to surface the error
 			// (probably close the chan and expose a method)
@@ -104,7 +115,10 @@ func (p *Player) stream() {
 			delay := getDelay(evt)
 			if delay > 0 && delay > lastDelay {
 				// TODO: scale delay based on playback speed
-				p.applyDelay(time.Duration(delay-lastDelay) * time.Millisecond)
+				if err := p.applyDelay(time.Duration(delay-lastDelay) * time.Millisecond); err != nil {
+					close(p.emit)
+					return
+				}
 				lastDelay = delay
 			}
 
@@ -122,8 +136,7 @@ func (p *Player) stream() {
 // Close shuts down the player and cancels any streams that are
 // in progress.
 func (p *Player) Close() error {
-	// TODO: either hold on to a context that we cancel, or
-	// have a separate done chan
+	close(p.done)
 	return nil
 }
 
@@ -154,10 +167,12 @@ func (p *Player) Play() error {
 
 // applyDelay "sleeps" for d in a manner that
 // can be canceled
-func (p *Player) applyDelay(d time.Duration) {
+func (p *Player) applyDelay(d time.Duration) error {
 	select {
-	// TODO: add cancelable case
+	case <-p.done:
+		return errClosed
 	case <-p.clock.After(d):
+		return nil
 	}
 }
 
@@ -188,7 +203,8 @@ func (p *Player) waitWhilePaused() error {
 
 	if alreadyPlaying := ch == nil; !alreadyPlaying {
 		select {
-		// TODO: add cancelable case
+		case <-p.done:
+			return errClosed
 		case <-ch:
 		}
 	}

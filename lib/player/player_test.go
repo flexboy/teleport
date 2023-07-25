@@ -64,39 +64,64 @@ func TestPlayPause(t *testing.T) {
 }
 
 func TestAppliesTiming(t *testing.T) {
-	clk := clockwork.NewFakeClock()
-	p, err := player.New(&player.Config{
-		Clock:     clk,
-		SessionID: "test-session",
-		Streamer:  &simpleStreamer{count: 3, delay: 1000},
-	})
-	require.NoError(t, err)
+	for _, test := range []struct {
+		desc    string
+		speed   float64
+		advance time.Duration
+	}{
+		{
+			desc:    "half speed",
+			speed:   0.5,
+			advance: 2000 * time.Millisecond,
+		},
+		{
+			desc:    "normal speed",
+			speed:   1.0,
+			advance: 1000 * time.Millisecond,
+		},
+		{
+			desc:    "double speed",
+			speed:   2.0,
+			advance: 500 * time.Millisecond,
+		},
+	} {
+		t.Run(test.desc, func(t *testing.T) {
+			clk := clockwork.NewFakeClock()
+			p, err := player.New(&player.Config{
+				Clock:     clk,
+				SessionID: "test-session",
+				Streamer:  &simpleStreamer{count: 3, delay: 1000},
+			})
+			require.NoError(t, err)
 
-	require.NoError(t, p.Play())
+			require.NoError(t, p.SetSpeed(test.speed))
+			require.NoError(t, p.Play())
 
-	clk.BlockUntil(1) // player is now waiting to emit event 0
+			clk.BlockUntil(1) // player is now waiting to emit event 0
 
-	// advance to next event (player will have emitted event 0
-	// and will be waiting to emit event 1)
-	clk.Advance(1001 * time.Millisecond)
-	clk.BlockUntil(1)
-	evt := <-p.C()
-	require.Equal(t, int64(0), evt.GetIndex())
+			// advance to next event (player will have emitted event 0
+			// and will be waiting to emit event 1)
+			clk.Advance(test.advance)
+			clk.BlockUntil(1)
+			evt := <-p.C()
+			require.Equal(t, int64(0), evt.GetIndex())
 
-	// repeat the process (emit event 1, wait for event 2)
-	clk.Advance(1001 * time.Millisecond)
-	clk.BlockUntil(1)
-	evt = <-p.C()
-	require.Equal(t, int64(1), evt.GetIndex())
+			// repeat the process (emit event 1, wait for event 2)
+			clk.Advance(test.advance)
+			clk.BlockUntil(1)
+			evt = <-p.C()
+			require.Equal(t, int64(1), evt.GetIndex())
 
-	// advance the player to allow event 2 to be emitted
-	clk.Advance(1001 * time.Millisecond)
-	evt = <-p.C()
-	require.Equal(t, int64(2), evt.GetIndex())
+			// advance the player to allow event 2 to be emitted
+			clk.Advance(test.advance)
+			evt = <-p.C()
+			require.Equal(t, int64(2), evt.GetIndex())
 
-	// channel should be closed
-	_, ok := <-p.C()
-	require.False(t, ok, "player should be closed")
+			// channel should be closed
+			_, ok := <-p.C()
+			require.False(t, ok, "player should be closed")
+		})
+	}
 }
 
 func TestClose(t *testing.T) {

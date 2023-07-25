@@ -7,8 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gravitational/teleport/api/player"
 	apievents "github.com/gravitational/teleport/api/types/events"
+	"github.com/gravitational/teleport/lib/events"
+	"github.com/gravitational/teleport/lib/player"
+	"github.com/gravitational/teleport/lib/session"
 
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
@@ -118,7 +120,7 @@ type simpleStreamer struct {
 	delay int64 // milliseconds
 }
 
-func (s *simpleStreamer) StreamSessionEvents(ctx context.Context, sessionID string, startIndex int64) (chan apievents.AuditEvent, chan error) {
+func (s *simpleStreamer) StreamSessionEvents(ctx context.Context, sessionID session.ID, startIndex int64) (chan apievents.AuditEvent, chan error) {
 	errors := make(chan error, 1)
 	evts := make(chan apievents.AuditEvent)
 
@@ -131,7 +133,7 @@ func (s *simpleStreamer) StreamSessionEvents(ctx context.Context, sessionID stri
 				return
 			case evts <- &apievents.SessionPrint{
 				Metadata: apievents.Metadata{
-					Type:  "session.print", //events.SessionPrintEvent,
+					Type:  events.SessionPrintEvent,
 					Index: i,
 					ID:    strconv.Itoa(int(i)),
 				},

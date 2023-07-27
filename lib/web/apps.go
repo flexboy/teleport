@@ -22,6 +22,7 @@ import (
 	"context"
 	"net/http"
 	"sort"
+	"strings"
 
 	"github.com/gravitational/trace"
 	"github.com/julienschmidt/httprouter"
@@ -60,8 +61,22 @@ func (h *Handler) clusterAppsGet(w http.ResponseWriter, r *http.Request, p httpr
 	}
 
 	page, err := apiclient.GetResourcePage[types.AppServerOrSAMLIdPServiceProvider](r.Context(), clt, req)
+
 	if err != nil {
-		return nil, trace.Wrap(err)
+		// If the error returned is due to types.KindAppOrSAMLIdPServiceProvider being unsupported, then fallback to attempting to just fetch types.AppServers.
+		// This is for backwards compatibility with leaf clusters that don't support this new type yet.
+		if strings.Contains(err.Error(), types.KindAppOrSAMLIdPServiceProvider) {
+			req, err = convertListResourcesRequest(r, types.KindAppServer)
+			if err != nil {
+				return nil, trace.Wrap(err)
+			}
+			appServerPage, err := apiclient.GetResourcePage[types.AppServer](r.Context(), clt, req)
+			if err != nil {
+				return nil, trace.Wrap(err)
+			}
+			// Convert the ResourcePage returned containing AppServers to a ResourcePage containing AppServerOrSAMLIdPServiceProviders.
+			page = AppServerOrSPPageFromAppServerPage(appServerPage)
+		}
 	}
 
 	userGroups, err := apiclient.GetAllResources[types.UserGroup](r.Context(), clt, &proto.ListResourcesRequest{
@@ -405,4 +420,29 @@ func (h *Handler) proxyDNSNames() (dnsNames []string) {
 		return []string{h.auth.clusterName}
 	}
 	return dnsNames
+}
+
+// AppServerOrSPPageFromAppServerPage converts a ResourcePage containing AppServers to a ResourcePage containing AppServerOrSAMLIdPServiceProviders.
+func AppServerOrSPPageFromAppServerPage(appServerPage apiclient.ResourcePage[types.AppServer]) apiclient.ResourcePage[types.AppServerOrSAMLIdPServiceProvider] {
+	var resources []types.AppServerOrSAMLIdPServiceProvider
+	for _, appServer := range appServerPage.Resources {
+		resources = append(resources, createAppServerOrSPFromAppServer(appServer))
+	}
+
+	return apiclient.ResourcePage[types.AppServerOrSAMLIdPServiceProvider]{
+		Resources: resources,
+		Total:     appServerPage.Total,
+		NextKey:   appServerPage.NextKey,
+	}
+}
+
+// createAppServerOrSPFromAppServer returns a AppServerOrSAMLIdPServiceProvider given an AppServer.
+func createAppServerOrSPFromAppServer(appServer types.AppServer) types.AppServerOrSAMLIdPServiceProvider {
+	appServerOrSP := &types.AppServerOrSAMLIdPServiceProviderV1{
+		Resource: &types.AppServerOrSAMLIdPServiceProviderV1_AppServer{
+			AppServer: appServer.(*types.AppServerV3),
+		},
+	}
+
+	return appServerOrSP
 }

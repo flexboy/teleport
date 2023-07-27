@@ -15,23 +15,26 @@
  */
 
 import React from 'react';
-import { useTheme } from 'styled-components';
 import ReactSelectCreatable from 'react-select/creatable';
 
-const styles = theme => ({
+const styles = {
   multiValue: (base, state) => {
     return state.data.isFixed ? { ...base, backgroundColor: 'gray' } : base;
   },
   multiValueLabel: (base, state) => {
     if (state.data.isFixed) {
-      return { ...base, color: theme.colors.text.main, paddingRight: 6 };
+      return {
+        ...base,
+        color: 'black',
+        paddingRight: 6,
+      };
     }
 
     if (state.isDisabled) {
       return { ...base, paddingRight: 6 };
     }
 
-    return { ...base, color: theme.colors.text.primaryInverse };
+    return { ...base, color: 'black' };
   },
   multiValueRemove: (base, state) => {
     return state.data.isFixed || state.isDisabled
@@ -39,13 +42,13 @@ const styles = theme => ({
       : {
           ...base,
           cursor: 'pointer',
-          color: theme.colors.text.primaryInverse,
+          color: 'black',
         };
   },
   menuList: base => {
-    return { ...base, color: theme.colors.text.primaryInverse };
+    return { ...base, color: 'black' };
   },
-});
+};
 
 export type SelectCreatableProps = {
   inputValue: string;
@@ -75,14 +78,13 @@ export const SelectCreatable = ({
   autoFocus = false,
   ...rest
 }: SelectCreatableProps) => {
-  const theme = useTheme();
   return (
     <ReactSelectCreatable
       className="react-select"
       components={{
         DropdownIndicator: null,
       }}
-      styles={styles(theme)}
+      styles={styles}
       {...rest}
       isMulti={isMulti}
       isClearable={isClearable}

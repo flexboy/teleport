@@ -199,6 +199,10 @@ func ParseShortcut(in string) (string, error) {
 		return types.KindIntegration, nil
 	case types.KindAccessList, types.KindAccessList + "s", "accesslist", "accesslists":
 		return types.KindAccessList, nil
+	case types.KindAuditQuery:
+		return types.KindAuditQuery, nil
+	case types.KindSecurityReport:
+		return types.KindSecurityReport, nil
 	}
 	return "", trace.BadParameter("unsupported resource: %q - resources should be expressed as 'type/name', for example 'connector/github'", in)
 }

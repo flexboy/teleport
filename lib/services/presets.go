@@ -268,6 +268,8 @@ func NewPresetAuditorRole() types.Role {
 					types.NewRule(types.KindClusterAlert, RO()),
 					types.NewRule(types.KindInstance, RO()),
 					// Please see defaultAllowRules when adding a new rule.
+					types.NewRule(types.KindSecurityReport, append(RW(), types.VerbUse)),
+					types.NewRule(types.KindAuditQuery, append(RW(), types.VerbUse)),
 				},
 			},
 		},

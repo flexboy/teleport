@@ -42,6 +42,7 @@ import (
 	loginrulepb "github.com/gravitational/teleport/api/gen/proto/go/teleport/loginrule/v1"
 	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/teleport/api/types/installers"
+	"github.com/gravitational/teleport/api/types/secreports"
 	"github.com/gravitational/teleport/lib/auth"
 	"github.com/gravitational/teleport/lib/client"
 	"github.com/gravitational/teleport/lib/defaults"
@@ -130,6 +131,8 @@ func (rc *ResourceCommand) Initialize(app *kingpin.Application, config *servicec
 		types.KindIntegration:              rc.createIntegration,
 		types.KindWindowsDesktop:           rc.createWindowsDesktop,
 		types.KindAccessList:               rc.createAccessList,
+		types.KindAuditQuery:               rc.createAuditQuery,
+		types.KindSecurityReport:           rc.createSecurityReport,
 	}
 	rc.config = config
 
@@ -323,7 +326,7 @@ func (rc *ResourceCommand) createTrustedCluster(ctx context.Context, client auth
 		return trace.Wrap(err)
 	}
 
-	exists := (err == nil)
+	exists := err == nil
 	if !rc.force && exists {
 		return trace.AlreadyExists("trusted cluster %q already exists", name)
 	}
@@ -370,7 +373,7 @@ func (rc *ResourceCommand) createGithubConnector(ctx context.Context, client aut
 	if err != nil && !trace.IsNotFound(err) {
 		return trace.Wrap(err)
 	}
-	exists := (err == nil)
+	exists := err == nil
 	if !rc.force && exists {
 		return trace.AlreadyExists("authentication connector %q already exists",
 			connector.GetName())
@@ -406,7 +409,7 @@ func (rc *ResourceCommand) createRole(ctx context.Context, client auth.ClientI, 
 	if err != nil && !trace.IsNotFound(err) {
 		return trace.Wrap(err)
 	}
-	roleExists := (err == nil)
+	roleExists := err == nil
 	if roleExists && !rc.IsForced() {
 		return trace.AlreadyExists("role '%s' already exists", roleName)
 	}
@@ -449,7 +452,7 @@ func (rc *ResourceCommand) createUser(ctx context.Context, client auth.ClientI, 
 	if err != nil && !trace.IsNotFound(err) {
 		return trace.Wrap(err)
 	}
-	exists := (err == nil)
+	exists := err == nil
 
 	if exists {
 		if !rc.force {
@@ -578,7 +581,7 @@ func (rc *ResourceCommand) createLock(ctx context.Context, client auth.ClientI, 
 		return trace.Wrap(err)
 	}
 
-	exists := (err == nil)
+	exists := err == nil
 	if !rc.force && exists {
 		return trace.AlreadyExists("lock %q already exists", name)
 	}
@@ -728,7 +731,7 @@ func (rc *ResourceCommand) createNode(ctx context.Context, client auth.ClientI, 
 	if err != nil && !trace.IsNotFound(err) {
 		return trace.Wrap(err)
 	}
-	exists := (err == nil)
+	exists := err == nil
 	if !rc.IsForced() && exists {
 		return trace.AlreadyExists("node %q with Hostname %q and Addr %q already exists, use --force flag to override",
 			name,
@@ -755,7 +758,7 @@ func (rc *ResourceCommand) createOIDCConnector(ctx context.Context, client auth.
 	if err != nil && !trace.IsNotFound(err) {
 		return trace.Wrap(err)
 	}
-	exists := (err == nil)
+	exists := err == nil
 	if !rc.IsForced() && exists {
 		return trace.AlreadyExists("connector '%s' already exists, use -f flag to override", connectorName)
 	}
@@ -778,7 +781,7 @@ func (rc *ResourceCommand) createSAMLConnector(ctx context.Context, client auth.
 	if err != nil && !trace.IsNotFound(err) {
 		return trace.Wrap(err)
 	}
-	exists := (err == nil)
+	exists := err == nil
 	if !rc.IsForced() && exists {
 		return trace.AlreadyExists("connector '%s' already exists, use -f flag to override", connectorName)
 	}
@@ -922,7 +925,7 @@ func (rc *ResourceCommand) createIntegration(ctx context.Context, client auth.Cl
 	if err != nil && !trace.IsNotFound(err) {
 		return trace.Wrap(err)
 	}
-	exists := (err == nil)
+	exists := err == nil
 
 	if exists {
 		if !rc.force {
@@ -2048,8 +2051,36 @@ func (rc *ResourceCommand) getCollection(ctx context.Context, client auth.Client
 				break
 			}
 		}
-
 		return &integrationCollection{integrations: resources}, nil
+	case types.KindAuditQuery:
+		if rc.ref.Name != "" {
+			auditQuery, err := client.SecReportsClient().GetAuditQuery(ctx, rc.ref.Name)
+			if err != nil {
+				return nil, trace.Wrap(err)
+			}
+			return &auditQueryCollection{auditQueries: []*secreports.AuditQuery{auditQuery}}, nil
+		}
+
+		resources, err := client.SecReportsClient().ListAuditQuery(ctx)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+
+		return &auditQueryCollection{auditQueries: resources}, nil
+	case types.KindSecurityReport:
+		if rc.ref.Name != "" {
+
+			resource, err := client.SecReportsClient().GetSecurityReport(ctx, rc.ref.Name)
+			if err != nil {
+				return nil, trace.Wrap(err)
+			}
+			return &securityReportCollection{items: []*secreports.SecurityReport{resource}}, nil
+		}
+		resources, err := client.SecReportsClient().ListSecurityReport(ctx)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+		return &securityReportCollection{items: resources}, nil
 	}
 	return nil, trace.BadParameter("getting %q is not supported", rc.ref.String())
 }
@@ -2108,10 +2139,10 @@ func UpsertVerb(exists bool, force bool) string {
 }
 
 func checkCreateResourceWithOrigin(storedRes types.ResourceWithOrigin, resDesc string, force, confirm bool) error {
-	if exists := (storedRes.Origin() != types.OriginDefaults); exists && !force {
+	if exists := storedRes.Origin() != types.OriginDefaults; exists && !force {
 		return trace.AlreadyExists("non-default %s already exists", resDesc)
 	}
-	if managedByStatic := (storedRes.Origin() == types.OriginConfigFile); managedByStatic && !confirm {
+	if managedByStatic := storedRes.Origin() == types.OriginConfigFile; managedByStatic && !confirm {
 		return trace.BadParameter(`The %s resource is managed by static configuration. We recommend removing configuration from teleport.yaml, restarting the servers and trying this command again.
 
 If you would still like to proceed, re-run the command with both --force and --confirm flags.`, resDesc)
@@ -2250,4 +2281,40 @@ func formatAmbiguousDeleteMessage(ref services.Ref, resDesc string, names []stri
 Use either a full resource name or an unambiguous prefix, for example:
 $ tctl rm %s`,
 		ref.String(), resDesc, strings.Join(names, "\n"), exampleRef.String())
+}
+
+func (rc *ResourceCommand) createAuditQuery(ctx context.Context, client auth.ClientI, raw services.UnknownResource) error {
+	in, err := services.UnmarshalAuditQuery(raw.Raw)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	if err := in.CheckAndSetDefaults(); err != nil {
+		return trace.Wrap(err)
+	}
+
+	if err = client.SecReportsClient().UpsertAuditQuery(ctx, in); err != nil {
+		if err != nil {
+			return trace.Wrap(err)
+		}
+	}
+	return nil
+}
+
+func (rc *ResourceCommand) createSecurityReport(ctx context.Context, client auth.ClientI, raw services.UnknownResource) error {
+	in, err := services.UnmarshalSecurityReport(raw.Raw)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+
+	if err := in.CheckAndSetDefaults(); err != nil {
+		return trace.Wrap(err)
+	}
+
+	if err = client.SecReportsClient().UpsertSecurityReports(ctx, in); err != nil {
+		if err != nil {
+			return trace.Wrap(err)
+		}
+	}
+	return nil
 }

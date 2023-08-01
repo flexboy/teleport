@@ -30,6 +30,7 @@ import (
 	devicepb "github.com/gravitational/teleport/api/gen/proto/go/teleport/devicetrust/v1"
 	loginrulepb "github.com/gravitational/teleport/api/gen/proto/go/teleport/loginrule/v1"
 	"github.com/gravitational/teleport/api/types"
+	"github.com/gravitational/teleport/api/types/secreports"
 	apiutils "github.com/gravitational/teleport/api/utils"
 	"github.com/gravitational/teleport/lib/asciitable"
 	"github.com/gravitational/teleport/lib/devicetrust"
@@ -1188,6 +1189,48 @@ func (c *userGroupCollection) writeText(w io.Writer, verbose bool) error {
 			userGroup.GetName(),
 			userGroup.Origin(),
 		})
+	}
+	_, err := t.AsBuffer().WriteTo(w)
+	return trace.Wrap(err)
+}
+
+type auditQueryCollection struct {
+	auditQueries []*secreports.AuditQuery
+}
+
+func (c *auditQueryCollection) resources() []types.Resource {
+	r := make([]types.Resource, len(c.auditQueries))
+	for i, resource := range c.auditQueries {
+		r[i] = resource
+	}
+	return r
+}
+
+func (c *auditQueryCollection) writeText(w io.Writer, verbose bool) error {
+	t := asciitable.MakeTable([]string{"Name", "Query", "Desc"})
+	for _, v := range c.auditQueries {
+		t.AddRow([]string{v.GetName(), v.Spec.Query, v.Spec.Desc})
+	}
+	_, err := t.AsBuffer().WriteTo(w)
+	return trace.Wrap(err)
+}
+
+type securityReportCollection struct {
+	items []*secreports.SecurityReport
+}
+
+func (c *securityReportCollection) resources() []types.Resource {
+	r := make([]types.Resource, len(c.items))
+	for i, resource := range c.items {
+		r[i] = resource
+	}
+	return r
+}
+
+func (c *securityReportCollection) writeText(w io.Writer, verbose bool) error {
+	t := asciitable.MakeTable([]string{"Name", "Audit Queries", "Desc"})
+	for _, v := range c.items {
+		t.AddRow([]string{v.GetName(), strings.Join(v.Spec.Queries, ","), v.Spec.Desc})
 	}
 	_, err := t.AsBuffer().WriteTo(w)
 	return trace.Wrap(err)

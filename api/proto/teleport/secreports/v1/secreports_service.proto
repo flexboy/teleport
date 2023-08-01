@@ -1,0 +1,225 @@
+// Copyright 2023 Gravitational, Inc
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package teleport.secreports.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "teleport/secreports/v1/secreports.proto";
+
+option go_package = "github.com/gravitational/teleport/api/gen/proto/go/teleport/secreports/v1;secreportsv1";
+
+//SecReportsService is ...
+service SecReportsService {
+  // UpsertAuditQuery is ..
+  rpc UpsertAuditQuery(UpsertAuditQueryRequest) returns (google.protobuf.Empty);
+  // GetAuditQuery is ..
+  rpc GetAuditQuery(GetAuditQueryRequest) returns (AuditQuery);
+  //   rpc ListAuditQuery(ListAuditQueryRequest) returns (ListAuditQueryResponse); returns a paginated list of all Okta import rule resources.
+  rpc ListAuditQuery(ListAuditQueryRequest) returns (ListAuditQueryResponse);
+  // DeleteAuditQuery is ..
+  rpc DeleteAuditQuery(DeleteAuditQueryRequest) returns (google.protobuf.Empty);
+  // UpsertSecurityReport is ..
+  rpc UpsertSecurityReport(UpsertSecurityReportRequest) returns (google.protobuf.Empty);
+  // GetSecurityReport is ..
+  rpc GetSecurityReport(GetSecurityReportRequest) returns (SecurityReport);
+  // ListSecurityReport returns a paginated list of all Okta import rule resources.
+  rpc ListSecurityReport(ListSecurityReportRequest) returns (ListSecurityReportResponse);
+  // DeleteAuditQuery is ..
+  rpc DeleteSecurityReport(DeleteSecurityReportRequest) returns (google.protobuf.Empty);
+
+  // -- NOT CRUD Resource methods:
+
+  // RunAuditQuery is
+  rpc RunAuditQuery(RunAuditQueryRequest) returns (RunAuditQueryResponse);
+  // GetSchema ..
+  rpc GetSchema(GetSchemaRequest) returns (GetSchemaResponse);
+  //  RunSecurityReports runs a security reports;
+  rpc RunSecurityReport(RunSecurityReportRequest) returns (google.protobuf.Empty);
+  // GetSecurityReportsDetails is
+  rpc GetSecurityReportDetails(GetSecurityReportDetailsRequest) returns (GetSecurityReportDetailsResponse);
+}
+
+// RunSecurityReportRequest
+message RunSecurityReportRequest {
+  // name of the security report
+  string name = 1;
+  google.protobuf.Timestamp start_data = 2;
+  google.protobuf.Timestamp end_date = 3;
+}
+
+// DeleteAuditQueryRequest is
+message DeleteAuditQueryRequest {
+  // name is
+  string name = 1;
+}
+
+// DeleteSecurityReportRequest is
+message DeleteSecurityReportRequest {
+  // name is
+  string name = 1;
+}
+
+// RunAuditQueryRequest is
+message RunAuditQueryRequest {
+  oneof query {
+    // audit_query name ...
+    string name = 1;
+    // sql_text
+    string sql_text = 2;
+  }
+  // start_date is ..
+  google.protobuf.Timestamp start_data = 3;
+  // end_date is ..
+  google.protobuf.Timestamp end_date = 4;
+}
+
+// UpsertAuditQueryRequest ...
+message UpsertAuditQueryRequest {
+  // AuditQuery  ...
+  AuditQuery audit_query = 1;
+}
+
+// UpsertAuditQueryRequest ...
+message UpsertSecurityReportRequest {
+  // AuditQuery  ...
+  SecurityReport report = 1;
+}
+
+// GetAuditQueryRequest is ...
+message GetAuditQueryRequest {
+  // name is ...
+  string name = 1;
+}
+
+// GetAuditQueryRequest is ...
+message GetSecurityReportRequest {
+  // name is ...
+  string name = 1;
+}
+
+// GetAuditQueryRequest is ...
+message GetSecurityReportDetailsRequest {
+  // name is ...
+  string name = 1;
+  // start_date is ..
+  google.protobuf.Timestamp start_data = 2;
+  // end_date is ..
+  google.protobuf.Timestamp end_date = 3;
+}
+
+// ListAuditQueryRequest is
+message ListAuditQueryRequest {
+  // page_size is the number of results to return. If page_size is 0, a default page size of 200 will be chosen.
+  int32 page_size = 1;
+  // page_token is the next_token value returned from a previous List request if any.
+  string page_token = 2;
+}
+
+// ListSecurityReportRequest is
+message ListSecurityReportRequest {
+  // page_size is the number of results to return. If page_size is 0, a default page size of 200 will be chosen.
+  int32 page_size = 1;
+  // page_token is the next_token value returned from a previous List request if any.
+  string page_token = 2;
+}
+
+// ListAuditQueryResponse is
+message ListAuditQueryResponse {
+  // queries is
+  repeated AuditQuery queries = 1;
+  // next_page_token is the next page token. If there are no more results, it will be empty.
+  string next_page_token = 2;
+}
+
+// GetSchemaRequest
+message GetSchemaRequest {}
+
+// GetSchemaResponse is
+message GetSchemaResponse {
+  // ViewDesc is
+  message ViewDesc {
+    // ColumnDesc is
+    message ColumnDesc {
+      // name is
+      string name = 1;
+      // type is
+      string type = 2;
+      // desc
+      string desc = 3;
+    }
+    // name is
+    string name = 1;
+    // desc is
+    string desc = 2;
+    // columns is
+    repeated ColumnDesc columns = 3;
+  }
+
+  // views is
+  repeated ViewDesc views = 1;
+}
+
+// RunAuditQueryResponse
+message RunAuditQueryResponse {
+  // Result contains structure result.
+  QueryResult result = 1;
+}
+
+// ListSecurityReportResponse response.
+message ListSecurityReportResponse {
+  // reports is list of security reports.
+  repeated SecurityReport reports = 1;
+  // next_page_token is the next page token. If there are no more results, it will be empty.
+  string next_page_token = 2;
+}
+
+// SecurityReportResponse
+message GetSecurityReportDetailsResponse {
+  // Name of as security security report.
+  string name = 1;
+  // Desc is a security reports description.
+  string desc = 2;
+  // AuditQuery is a Security Audit Query description type.
+  message AuditQuery {
+    // Name is a name audit query
+    string name = 1;
+    //  is a audit query description.
+    string desc = 2;
+    // sql_query is a SQL Query.
+    string sql_query = 3;
+    // Result contains structure result.
+    QueryResult result = 4;
+  }
+  // audit_queries contains information about audit query.
+  repeated AuditQuery audit_queries = 3;
+}
+
+// QueryResult is proto representation of audit query result.
+message QueryResult {
+  // ColumInfo contains information about column
+  message ColumnInfo {
+    string name = 1;
+  }
+  // columns list of columns.
+  repeated ColumnInfo columns = 1;
+  // Row contains details about row value.
+  message Row {
+    repeated string data = 1;
+  }
+  // rows contains rows values.
+  repeated Row rows = 2;
+}

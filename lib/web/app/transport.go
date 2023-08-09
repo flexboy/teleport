@@ -38,6 +38,7 @@ import (
 	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/tlsca"
 	"github.com/gravitational/teleport/lib/utils"
+	"github.com/gravitational/teleport/lib/utils/utilsaddr"
 )
 
 // transportConfig is configuration for a rewriting transport.
@@ -291,7 +292,7 @@ func dialAppServer(ctx context.Context, proxyClient reversetunnelclient.Tunnel, 
 	}
 
 	var from net.Addr
-	from = &utils.NetAddr{AddrNetwork: "tcp", Addr: "@web-proxy"}
+	from = &utilsaddr.NetAddr{AddrNetwork: "tcp", Addr: "@web-proxy"}
 	clientSrcAddr, originalDst := utils.ClientAddrFromContext(ctx)
 	if clientSrcAddr != nil {
 		from = clientSrcAddr
@@ -299,7 +300,7 @@ func dialAppServer(ctx context.Context, proxyClient reversetunnelclient.Tunnel, 
 
 	conn, err := clusterClient.Dial(reversetunnelclient.DialParams{
 		From:                  from,
-		To:                    &utils.NetAddr{AddrNetwork: "tcp", Addr: reversetunnelclient.LocalNode},
+		To:                    &utilsaddr.NetAddr{AddrNetwork: "tcp", Addr: reversetunnelclient.LocalNode},
 		OriginalClientDstAddr: originalDst,
 		ServerID:              fmt.Sprintf("%v.%v", server.GetHostID(), clusterName),
 		ConnType:              server.GetTunnelType(),

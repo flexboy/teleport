@@ -80,6 +80,7 @@ import (
 	"github.com/gravitational/teleport/lib/srv"
 	"github.com/gravitational/teleport/lib/sshca"
 	"github.com/gravitational/teleport/lib/utils"
+	"github.com/gravitational/teleport/lib/utils/utilsaddr"
 )
 
 // KubeServiceType specifies a Teleport service type which can forward Kubernetes requests
@@ -473,7 +474,7 @@ func (c *authContext) eventUserMetaWithLogin(login string) apievents.UserMetadat
 // teleportClusterClient is a client for either a k8s endpoint in local cluster or a
 // proxy endpoint in a remote cluster.
 type teleportClusterClient struct {
-	remoteAddr utils.NetAddr
+	remoteAddr utilsaddr.NetAddr
 	name       string
 	isRemote   bool
 }
@@ -808,7 +809,7 @@ func (f *Forwarder) setupContext(
 		disconnectExpiredCert: srv.GetDisconnectExpiredCertFromIdentity(roles, authPref, &identity),
 		teleportCluster: teleportClusterClient{
 			name:       teleportClusterName,
-			remoteAddr: utils.NetAddr{AddrNetwork: "tcp", Addr: req.RemoteAddr},
+			remoteAddr: utilsaddr.NetAddr{AddrNetwork: "tcp", Addr: req.RemoteAddr},
 			isRemote:   isRemoteCluster,
 		},
 		kubeServers:  kubeServers,

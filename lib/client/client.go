@@ -58,6 +58,7 @@ import (
 	"github.com/gravitational/teleport/lib/sshutils/sftp"
 	"github.com/gravitational/teleport/lib/utils"
 	"github.com/gravitational/teleport/lib/utils/socks"
+	"github.com/gravitational/teleport/lib/utils/utilsaddr"
 )
 
 // ProxyClient implements ssh client to a teleport proxy
@@ -1289,11 +1290,11 @@ func (proxy *ProxyClient) dialAuthServer(ctx context.Context, clusterName string
 	address := "@" + clusterName
 
 	// parse destination first:
-	localAddr, err := utils.ParseAddr("tcp://" + proxy.proxyAddress)
+	localAddr, err := utilsaddr.ParseAddr("tcp://" + proxy.proxyAddress)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	fakeAddr, err := utils.ParseAddr("tcp://" + address)
+	fakeAddr, err := utilsaddr.ParseAddr("tcp://" + address)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -1411,11 +1412,11 @@ func (proxy *ProxyClient) ConnectToNode(ctx context.Context, nodeAddress NodeDet
 	}
 
 	// parse destination first:
-	localAddr, err := utils.ParseAddr("tcp://" + proxy.proxyAddress)
+	localAddr, err := utilsaddr.ParseAddr("tcp://" + proxy.proxyAddress)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	fakeAddr, err := utils.ParseAddr("tcp://" + nodeAddress.Addr)
+	fakeAddr, err := utilsaddr.ParseAddr("tcp://" + nodeAddress.Addr)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}

@@ -50,6 +50,7 @@ import (
 	"github.com/gravitational/teleport/lib/observability/metrics"
 	"github.com/gravitational/teleport/lib/tlsca"
 	"github.com/gravitational/teleport/lib/utils"
+	"github.com/gravitational/teleport/lib/utils/utilsaddr"
 )
 
 const (
@@ -682,7 +683,7 @@ func (a *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// determine authenticated user based on the request parameters
 	ctx := r.Context()
 	ctx = authz.ContextWithUserCertificate(ctx, certFromConnState(r.TLS))
-	clientSrcAddr, err := utils.ParseAddr(remoteAddr)
+	clientSrcAddr, err := utilsaddr.ParseAddr(remoteAddr)
 	if err == nil {
 		ctx = authz.ContextWithClientAddr(ctx, clientSrcAddr)
 	}

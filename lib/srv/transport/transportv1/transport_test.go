@@ -46,6 +46,7 @@ import (
 	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/teleagent"
 	"github.com/gravitational/teleport/lib/utils"
+	"github.com/gravitational/teleport/lib/utils/utilsaddr"
 )
 
 func TestMain(m *testing.M) {
@@ -165,7 +166,7 @@ func newServer(t *testing.T, cfg ServerConfig) testPack {
 	lis := bufconn.Listen(bufSize)
 	lisWithAddr = &listenerWithAddr{
 		Listener:  lis,
-		localAddr: utils.MustParseAddr("127.0.0.1:4242"),
+		localAddr: utilsaddr.MustParseAddr("127.0.0.1:4242"),
 	}
 	t.Cleanup(func() {
 		require.NoError(t, lis.Close())
@@ -201,7 +202,7 @@ func newServer(t *testing.T, cfg ServerConfig) testPack {
 			conn, err := lis.DialContext(ctx)
 			return &connWithAddr{
 				Conn: conn,
-				addr: utils.MustParseAddr("127.0.0.1:8484"),
+				addr: utilsaddr.MustParseAddr("127.0.0.1:8484"),
 			}, err
 		}),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -258,7 +259,7 @@ func TestService_GetClusterDetails(t *testing.T) {
 				FIPS:              test.FIPS,
 				SignerFn:          fakeSigner,
 				ConnectionMonitor: fakeMonitor{},
-				LocalAddr:         utils.MustParseAddr("127.0.0.1:4242"),
+				LocalAddr:         utilsaddr.MustParseAddr("127.0.0.1:4242"),
 			})
 
 			resp, err := srv.Client.GetClusterDetails(context.Background(), &transportv1pb.GetClusterDetailsRequest{})
@@ -340,7 +341,7 @@ func TestService_ProxyCluster(t *testing.T) {
 				Logger:            utils.NewLoggerForTests(),
 				SignerFn:          fakeSigner,
 				ConnectionMonitor: fakeMonitor{},
-				LocalAddr:         utils.MustParseAddr("127.0.0.1:4242"),
+				LocalAddr:         utilsaddr.MustParseAddr("127.0.0.1:4242"),
 			})
 
 			stream, err := srv.Client.ProxyCluster(context.Background())
@@ -490,7 +491,7 @@ func TestService_ProxySSH_Errors(t *testing.T) {
 				SignerFn:          fakeSigner,
 				ConnectionMonitor: fakeMonitor{},
 				Logger:            utils.NewLoggerForTests(),
-				LocalAddr:         utils.MustParseAddr("127.0.0.1:4242"),
+				LocalAddr:         utilsaddr.MustParseAddr("127.0.0.1:4242"),
 				authzContextFn: func(info credentials.AuthInfo) (*authz.Context, error) {
 					checker, err := test.checkerFn(info)
 					if err != nil {
@@ -553,7 +554,7 @@ func TestService_ProxySSH(t *testing.T) {
 		Dialer:            sshSrv,
 		SignerFn:          fakeSigner,
 		Logger:            utils.NewLoggerForTests(),
-		LocalAddr:         utils.MustParseAddr("127.0.0.1:4242"),
+		LocalAddr:         utilsaddr.MustParseAddr("127.0.0.1:4242"),
 		ConnectionMonitor: fakeMonitor{},
 		agentGetterFn: func(rw io.ReadWriter) teleagent.Getter {
 			return func() (teleagent.Agent, error) {
@@ -636,7 +637,7 @@ func TestService_ProxySSH(t *testing.T) {
 	require.NoError(t, err)
 
 	// create a new ssh client connection over a stream conn
-	addr := &utils.NetAddr{Addr: "127.0.0.1", AddrNetwork: "tcp"}
+	addr := &utilsaddr.NetAddr{Addr: "127.0.0.1", AddrNetwork: "tcp"}
 	sshconn, chans, reqs, err := ssh.NewClientConn(
 		streamutils.NewConn(sshRW, addr, sshSrv.listener.Addr()),
 		addr.String(),
@@ -706,7 +707,7 @@ func TestGetDestinationAddress(t *testing.T) {
 
 	for i, tt := range testCases {
 		t.Run(fmt.Sprintf("Test #%d", i), func(t *testing.T) {
-			res, err := getDestinationAddress(utils.MustParseAddr(tt.srcAddr), utils.MustParseAddr(tt.listenerAddr))
+			res, err := getDestinationAddress(utilsaddr.MustParseAddr(tt.srcAddr), utilsaddr.MustParseAddr(tt.listenerAddr))
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, res.String())
 		})

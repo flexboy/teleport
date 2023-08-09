@@ -60,6 +60,7 @@ import (
 	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/tlsca"
 	"github.com/gravitational/teleport/lib/utils"
+	"github.com/gravitational/teleport/lib/utils/utilsaddr"
 )
 
 // CommandLineFlags stores command line flag values, it's a much simplified subset
@@ -398,7 +399,7 @@ func ApplyFileConfig(fc *FileConfig, cfg *servicecfg.Config) error {
 	// Set diagnostic address
 	if fc.DiagAddr != "" {
 		// Validate address
-		parsed, err := utils.ParseAddr(fc.DiagAddr)
+		parsed, err := utilsaddr.ParseAddr(fc.DiagAddr)
 		if err != nil {
 			return trace.Wrap(err)
 		}
@@ -509,10 +510,10 @@ func applyAuthOrProxyAddress(fc *FileConfig, cfg *servicecfg.Config) error {
 	case defaults.TeleportConfigVersionV1, defaults.TeleportConfigVersionV2:
 		// config file has auth servers in there?
 		if len(fc.AuthServers) > 0 {
-			var parsedAddresses []utils.NetAddr
+			var parsedAddresses []utilsaddr.NetAddr
 
 			for _, as := range fc.AuthServers {
-				addr, err := utils.ParseHostPortAddr(as, defaults.AuthListenPort)
+				addr, err := utilsaddr.ParseHostPortAddr(as, defaults.AuthListenPort)
 				if err != nil {
 					return trace.Wrap(err)
 				}
@@ -547,7 +548,7 @@ func applyAuthOrProxyAddress(fc *FileConfig, cfg *servicecfg.Config) error {
 		}
 
 		if haveAuthServer {
-			addr, err := utils.ParseHostPortAddr(fc.AuthServer, defaults.AuthListenPort)
+			addr, err := utilsaddr.ParseHostPortAddr(fc.AuthServer, defaults.AuthListenPort)
 			if err != nil {
 				return trace.Wrap(err)
 			}
@@ -560,7 +561,7 @@ func applyAuthOrProxyAddress(fc *FileConfig, cfg *servicecfg.Config) error {
 				return trace.BadParameter("proxy_server can not be specified when proxy service is enabled")
 			}
 
-			addr, err := utils.ParseHostPortAddr(fc.ProxyServer, defaults.HTTPListenPort)
+			addr, err := utilsaddr.ParseHostPortAddr(fc.ProxyServer, defaults.HTTPListenPort)
 			if err != nil {
 				return trace.Wrap(err)
 			}
@@ -662,7 +663,7 @@ func applyAuthConfig(fc *FileConfig, cfg *servicecfg.Config) error {
 		return trace.Wrap(err)
 	}
 	if fc.Auth.ListenAddress != "" {
-		addr, err := utils.ParseHostPortAddr(fc.Auth.ListenAddress, int(defaults.AuthListenPort))
+		addr, err := utilsaddr.ParseHostPortAddr(fc.Auth.ListenAddress, int(defaults.AuthListenPort))
 		if err != nil {
 			return trace.Wrap(err)
 		}
@@ -893,49 +894,49 @@ func applyProxyConfig(fc *FileConfig, cfg *servicecfg.Config) error {
 		return trace.Wrap(err)
 	}
 	if fc.Proxy.ListenAddress != "" {
-		addr, err := utils.ParseHostPortAddr(fc.Proxy.ListenAddress, defaults.SSHProxyListenPort)
+		addr, err := utilsaddr.ParseHostPortAddr(fc.Proxy.ListenAddress, defaults.SSHProxyListenPort)
 		if err != nil {
 			return trace.Wrap(err)
 		}
 		cfg.Proxy.SSHAddr = *addr
 	}
 	if fc.Proxy.WebAddr != "" {
-		addr, err := utils.ParseHostPortAddr(fc.Proxy.WebAddr, defaults.HTTPListenPort)
+		addr, err := utilsaddr.ParseHostPortAddr(fc.Proxy.WebAddr, defaults.HTTPListenPort)
 		if err != nil {
 			return trace.Wrap(err)
 		}
 		cfg.Proxy.WebAddr = *addr
 	}
 	if fc.Proxy.TunAddr != "" {
-		addr, err := utils.ParseHostPortAddr(fc.Proxy.TunAddr, defaults.SSHProxyTunnelListenPort)
+		addr, err := utilsaddr.ParseHostPortAddr(fc.Proxy.TunAddr, defaults.SSHProxyTunnelListenPort)
 		if err != nil {
 			return trace.Wrap(err)
 		}
 		cfg.Proxy.ReverseTunnelListenAddr = *addr
 	}
 	if fc.Proxy.MySQLAddr != "" {
-		addr, err := utils.ParseHostPortAddr(fc.Proxy.MySQLAddr, defaults.MySQLListenPort)
+		addr, err := utilsaddr.ParseHostPortAddr(fc.Proxy.MySQLAddr, defaults.MySQLListenPort)
 		if err != nil {
 			return trace.Wrap(err)
 		}
 		cfg.Proxy.MySQLAddr = *addr
 	}
 	if fc.Proxy.PostgresAddr != "" {
-		addr, err := utils.ParseHostPortAddr(fc.Proxy.PostgresAddr, defaults.PostgresListenPort)
+		addr, err := utilsaddr.ParseHostPortAddr(fc.Proxy.PostgresAddr, defaults.PostgresListenPort)
 		if err != nil {
 			return trace.Wrap(err)
 		}
 		cfg.Proxy.PostgresAddr = *addr
 	}
 	if fc.Proxy.MongoAddr != "" {
-		addr, err := utils.ParseHostPortAddr(fc.Proxy.MongoAddr, defaults.MongoListenPort)
+		addr, err := utilsaddr.ParseHostPortAddr(fc.Proxy.MongoAddr, defaults.MongoListenPort)
 		if err != nil {
 			return trace.Wrap(err)
 		}
 		cfg.Proxy.MongoAddr = *addr
 	}
 	if fc.Proxy.PeerAddr != "" {
-		addr, err := utils.ParseHostPortAddr(fc.Proxy.PeerAddr, int(defaults.ProxyPeeringListenPort))
+		addr, err := utilsaddr.ParseHostPortAddr(fc.Proxy.PeerAddr, int(defaults.ProxyPeeringListenPort))
 		if err != nil {
 			return trace.Wrap(err)
 		}
@@ -1018,7 +1019,7 @@ func applyProxyConfig(fc *FileConfig, cfg *servicecfg.Config) error {
 			cfg.Proxy.Kube.KubeconfigPath = fc.Proxy.Kube.KubeconfigFile
 		}
 		if fc.Proxy.Kube.ListenAddress != "" {
-			addr, err := utils.ParseHostPortAddr(fc.Proxy.Kube.ListenAddress, int(defaults.KubeListenPort))
+			addr, err := utilsaddr.ParseHostPortAddr(fc.Proxy.Kube.ListenAddress, int(defaults.KubeListenPort))
 			if err != nil {
 				return trace.Wrap(err)
 			}
@@ -1040,7 +1041,7 @@ func applyProxyConfig(fc *FileConfig, cfg *servicecfg.Config) error {
 			return trace.BadParameter("kube_listen_addr must be set when kube_public_addr is set")
 		}
 		cfg.Proxy.Kube.Enabled = true
-		addr, err := utils.ParseHostPortAddr(fc.Proxy.KubeAddr, int(defaults.KubeListenPort))
+		addr, err := utilsaddr.ParseHostPortAddr(fc.Proxy.KubeAddr, int(defaults.KubeListenPort))
 		if err != nil {
 			return trace.Wrap(err)
 		}
@@ -1114,7 +1115,7 @@ func applyProxyConfig(fc *FileConfig, cfg *servicecfg.Config) error {
 		if fc.Proxy.PeerAddr == "" {
 			return trace.BadParameter("peer_listen_addr must be set when peer_public_addr is set")
 		}
-		addr, err := utils.ParseHostPortAddr(fc.Proxy.PeerPublicAddr, int(defaults.ProxyPeeringListenPort))
+		addr, err := utilsaddr.ParseHostPortAddr(fc.Proxy.PeerPublicAddr, int(defaults.ProxyPeeringListenPort))
 		if err != nil {
 			return trace.Wrap(err)
 		}
@@ -1176,7 +1177,7 @@ func applyDefaultProxyListenerAddresses(cfg *servicecfg.Config) {
 // applySSHConfig applies file configuration for the "ssh_service" section.
 func applySSHConfig(fc *FileConfig, cfg *servicecfg.Config) (err error) {
 	if fc.SSH.ListenAddress != "" {
-		addr, err := utils.ParseHostPortAddr(fc.SSH.ListenAddress, int(defaults.SSHServerListenPort))
+		addr, err := utilsaddr.ParseHostPortAddr(fc.SSH.ListenAddress, int(defaults.SSHServerListenPort))
 		if err != nil {
 			return trace.Wrap(err)
 		}
@@ -1355,7 +1356,7 @@ func applyDiscoveryConfig(fc *FileConfig, cfg *servicecfg.Config) error {
 // applyKubeConfig applies file configuration for the "kubernetes_service" section.
 func applyKubeConfig(fc *FileConfig, cfg *servicecfg.Config) error {
 	if fc.Kube.ListenAddress != "" {
-		addr, err := utils.ParseHostPortAddr(fc.Kube.ListenAddress, int(defaults.SSHProxyListenPort))
+		addr, err := utilsaddr.ParseHostPortAddr(fc.Kube.ListenAddress, int(defaults.SSHProxyListenPort))
 		if err != nil {
 			return trace.Wrap(err)
 		}
@@ -1655,7 +1656,7 @@ func applyMetricsConfig(fc *FileConfig, cfg *servicecfg.Config) error {
 	// Metrics is enabled.
 	cfg.Metrics.Enabled = true
 
-	addr, err := utils.ParseHostPortAddr(fc.Metrics.ListenAddress, int(defaults.MetricsListenPort))
+	addr, err := utilsaddr.ParseHostPortAddr(fc.Metrics.ListenAddress, int(defaults.MetricsListenPort))
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -1728,7 +1729,7 @@ func applyWindowsDesktopConfig(fc *FileConfig, cfg *servicecfg.Config) error {
 	cfg.WindowsDesktop.Enabled = true
 
 	if fc.WindowsDesktop.ListenAddress != "" {
-		listenAddr, err := utils.ParseHostPortAddr(fc.WindowsDesktop.ListenAddress, int(defaults.WindowsDesktopListenPort))
+		listenAddr, err := utilsaddr.ParseHostPortAddr(fc.WindowsDesktop.ListenAddress, int(defaults.WindowsDesktopListenPort))
 		if err != nil {
 			return trace.Wrap(err)
 		}
@@ -2118,7 +2119,7 @@ func Configure(clf *CommandLineFlags, cfg *servicecfg.Config, legacyAppFlags boo
 
 	// Apply diagnostic address flag.
 	if clf.DiagnosticAddr != "" {
-		addr, err := utils.ParseAddr(clf.DiagnosticAddr)
+		addr, err := utilsaddr.ParseAddr(clf.DiagnosticAddr)
 		if err != nil {
 			return trace.Wrap(err, "failed to parse diag-addr")
 		}
@@ -2155,9 +2156,9 @@ func Configure(clf *CommandLineFlags, cfg *servicecfg.Config, legacyAppFlags boo
 			cfg.Auth.Enabled = false
 		}
 
-		authServerAddresses := make([]utils.NetAddr, 0, len(clf.AuthServerAddr))
+		authServerAddresses := make([]utilsaddr.NetAddr, 0, len(clf.AuthServerAddr))
 		for _, as := range clf.AuthServerAddr {
-			addr, err := utils.ParseHostPortAddr(as, defaults.AuthListenPort)
+			addr, err := utilsaddr.ParseHostPortAddr(as, defaults.AuthListenPort)
 			if err != nil {
 				return trace.BadParameter("cannot parse auth server address: '%v'", as)
 			}
@@ -2291,7 +2292,7 @@ func ConfigureOpenSSH(clf *CommandLineFlags, cfg *servicecfg.Config) error {
 		return trace.Wrap(err)
 	}
 
-	proxyServer, err := utils.ParseAddr(clf.ProxyServer)
+	proxyServer, err := utilsaddr.ParseAddr(clf.ProxyServer)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -2391,7 +2392,7 @@ func isCmdLabelSpec(spec string) (types.CommandLabel, error) {
 // applyListenIP replaces all 'listen addr' settings for all services with
 // a given IP
 func applyListenIP(ip net.IP, cfg *servicecfg.Config) {
-	listeningAddresses := []*utils.NetAddr{
+	listeningAddresses := []*utilsaddr.NetAddr{
 		&cfg.Auth.ListenAddr,
 		&cfg.Auth.ListenAddr,
 		&cfg.Proxy.SSHAddr,
@@ -2406,7 +2407,7 @@ func applyListenIP(ip net.IP, cfg *servicecfg.Config) {
 
 // replaceHost takes utils.NetAddr and replaces the hostname in it, preserving
 // the original port
-func replaceHost(addr *utils.NetAddr, newHost string) {
+func replaceHost(addr *utilsaddr.NetAddr, newHost string) {
 	_, port, err := net.SplitHostPort(addr.Addr)
 	if err != nil {
 		log.Errorf("failed parsing address: '%v'", addr.Addr)

@@ -62,6 +62,7 @@ import (
 	"github.com/gravitational/teleport/lib/services/suite"
 	"github.com/gravitational/teleport/lib/tlsca"
 	"github.com/gravitational/teleport/lib/utils"
+	"github.com/gravitational/teleport/lib/utils/utilsaddr"
 )
 
 // TestRemoteBuiltinRole tests remote builtin role
@@ -3039,7 +3040,7 @@ func TestRegisterCAPin(t *testing.T) {
 
 	// Attempt to register with valid CA pin, should work.
 	_, err = Register(RegisterParams{
-		AuthServers: []utils.NetAddr{utils.FromAddr(testSrv.Addr())},
+		AuthServers: []utilsaddr.NetAddr{utilsaddr.FromAddr(testSrv.Addr())},
 		Token:       token,
 		ID: IdentityID{
 			HostUUID: "once",
@@ -3057,7 +3058,7 @@ func TestRegisterCAPin(t *testing.T) {
 	// Attempt to register with multiple CA pins where the auth server only
 	// matches one, should work.
 	_, err = Register(RegisterParams{
-		AuthServers: []utils.NetAddr{utils.FromAddr(testSrv.Addr())},
+		AuthServers: []utilsaddr.NetAddr{utilsaddr.FromAddr(testSrv.Addr())},
 		Token:       token,
 		ID: IdentityID{
 			HostUUID: "once",
@@ -3074,7 +3075,7 @@ func TestRegisterCAPin(t *testing.T) {
 
 	// Attempt to register with invalid CA pin, should fail.
 	_, err = Register(RegisterParams{
-		AuthServers: []utils.NetAddr{utils.FromAddr(testSrv.Addr())},
+		AuthServers: []utilsaddr.NetAddr{utilsaddr.FromAddr(testSrv.Addr())},
 		Token:       token,
 		ID: IdentityID{
 			HostUUID: "once",
@@ -3091,7 +3092,7 @@ func TestRegisterCAPin(t *testing.T) {
 
 	// Attempt to register with multiple invalid CA pins, should fail.
 	_, err = Register(RegisterParams{
-		AuthServers: []utils.NetAddr{utils.FromAddr(testSrv.Addr())},
+		AuthServers: []utilsaddr.NetAddr{utilsaddr.FromAddr(testSrv.Addr())},
 		Token:       token,
 		ID: IdentityID{
 			HostUUID: "once",
@@ -3127,7 +3128,7 @@ func TestRegisterCAPin(t *testing.T) {
 
 	// Attempt to register with multiple CA pins, should work
 	_, err = Register(RegisterParams{
-		AuthServers: []utils.NetAddr{utils.FromAddr(testSrv.Addr())},
+		AuthServers: []utilsaddr.NetAddr{utilsaddr.FromAddr(testSrv.Addr())},
 		Token:       token,
 		ID: IdentityID{
 			HostUUID: "once",
@@ -3172,7 +3173,7 @@ func TestRegisterCAPath(t *testing.T) {
 
 	// Attempt to register with nothing at the CA path, should work.
 	_, err = Register(RegisterParams{
-		AuthServers: []utils.NetAddr{utils.FromAddr(testSrv.Addr())},
+		AuthServers: []utilsaddr.NetAddr{utilsaddr.FromAddr(testSrv.Addr())},
 		Token:       token,
 		ID: IdentityID{
 			HostUUID: "once",
@@ -3201,7 +3202,7 @@ func TestRegisterCAPath(t *testing.T) {
 
 	// Attempt to register with valid CA path, should work.
 	_, err = Register(RegisterParams{
-		AuthServers: []utils.NetAddr{utils.FromAddr(testSrv.Addr())},
+		AuthServers: []utilsaddr.NetAddr{utilsaddr.FromAddr(testSrv.Addr())},
 		Token:       token,
 		ID: IdentityID{
 			HostUUID: "once",

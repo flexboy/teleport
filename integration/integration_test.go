@@ -97,6 +97,7 @@ import (
 	"github.com/gravitational/teleport/lib/tlsca"
 	"github.com/gravitational/teleport/lib/utils"
 	"github.com/gravitational/teleport/lib/utils/prompt"
+	"github.com/gravitational/teleport/lib/utils/utilsaddr"
 	"github.com/gravitational/teleport/lib/web"
 )
 
@@ -332,7 +333,7 @@ func testAuthLocalNodeControlStream(t *testing.T, suite *integrationTestSuite) {
 		return true
 	}, time.Second*10, time.Millisecond*200)
 
-	addr, err := utils.ParseAddr(nodeAddr)
+	addr, err := utilsaddr.ParseAddr(nodeAddr)
 	require.NoError(t, err)
 
 	// verify that we've replaced the unspecified host.
@@ -812,7 +813,7 @@ func (s *integrationTestSuite) newTeleportIoT(t *testing.T, logins []string) *he
 		tconf := s.defaultServiceConfig()
 		tconf.Hostname = Host
 		tconf.SetToken("token")
-		tconf.SetAuthServerAddress(utils.NetAddr{
+		tconf.SetAuthServerAddress(utilsaddr.NetAddr{
 			AddrNetwork: "tcp",
 			Addr:        main.Web,
 		})
@@ -1160,7 +1161,7 @@ func testCustomReverseTunnel(t *testing.T, suite *integrationTestSuite) {
 	conf.Proxy.DisableWebService = false
 	conf.Proxy.DisableWebInterface = true
 	conf.Proxy.DisableDatabaseProxy = true
-	conf.Proxy.TunnelPublicAddrs = []utils.NetAddr{
+	conf.Proxy.TunnelPublicAddrs = []utilsaddr.NetAddr{
 		{
 			// Connect on the address that refuses connection on purpose
 			// to test address fallback behavior
@@ -1323,7 +1324,7 @@ func (a *localAddr) get() net.Addr {
 	if addr != nil {
 		return *addr
 	}
-	return &utils.NetAddr{}
+	return &utilsaddr.NetAddr{}
 }
 
 // testIPPropagation makes sure that we can correctly propagate initial client IP observed by proxy.
@@ -1347,14 +1348,14 @@ func testIPPropagation(t *testing.T, suite *integrationTestSuite) {
 			conf.DataDir = t.TempDir()
 			conf.SetToken("token")
 			conf.UploadEventsC = i.UploadEventsC
-			conf.SetAuthServerAddress(*utils.MustParseAddr(net.JoinHostPort(i.Hostname, helpers.PortStr(t, i.Web))))
+			conf.SetAuthServerAddress(*utilsaddr.MustParseAddr(net.JoinHostPort(i.Hostname, helpers.PortStr(t, i.Web))))
 			conf.HostUUID = name
 			conf.Hostname = name
 			conf.SSH.Enabled = true
 			conf.CachePolicy = servicecfg.CachePolicy{
 				Enabled: true,
 			}
-			conf.SSH.Addr = utils.NetAddr{
+			conf.SSH.Addr = utilsaddr.NetAddr{
 				Addr: helpers.NewListenerOn(t, Host, service.ListenerNodeSSH, &conf.FileDescriptors),
 			}
 			conf.Proxy.Enabled = false
@@ -3567,7 +3568,7 @@ func testTrustedTunnelNode(t *testing.T, suite *integrationTestSuite) {
 		tconf := suite.defaultServiceConfig()
 		tconf.Hostname = tunnelNodeHostname
 		tconf.SetToken("token")
-		tconf.SetAuthServerAddress(utils.NetAddr{
+		tconf.SetAuthServerAddress(utilsaddr.NetAddr{
 			AddrNetwork: "tcp",
 			Addr:        aux.Web,
 		})
@@ -3801,7 +3802,7 @@ func testDiscoveryRecovers(t *testing.T, suite *integrationTestSuite) {
 	username := suite.Me.Username
 
 	// create load balancer for main cluster proxies
-	frontend := *utils.MustParseAddr(net.JoinHostPort(Loopback, "0"))
+	frontend := *utilsaddr.MustParseAddr(net.JoinHostPort(Loopback, "0"))
 	lb, err := utils.NewLoadBalancer(ctx, frontend)
 	require.NoError(t, err)
 	require.NoError(t, lb.Listen())
@@ -3817,7 +3818,7 @@ func testDiscoveryRecovers(t *testing.T, suite *integrationTestSuite) {
 	require.NoError(t, main.Create(t, remote.Secrets.AsSlice(), false, nil))
 	mainSecrets := main.Secrets
 	// switch listen address of the main cluster to load balancer
-	mainProxyAddr := *utils.MustParseAddr(mainSecrets.TunnelAddr)
+	mainProxyAddr := *utilsaddr.MustParseAddr(mainSecrets.TunnelAddr)
 	lb.AddBackend(mainProxyAddr)
 	mainSecrets.TunnelAddr = lb.Addr().String()
 	require.NoError(t, remote.Create(t, mainSecrets.AsSlice(), true, nil))
@@ -3849,7 +3850,7 @@ func testDiscoveryRecovers(t *testing.T, suite *integrationTestSuite) {
 		require.NoError(t, err)
 
 		// add proxy as a backend to the load balancer
-		lb.AddBackend(*utils.MustParseAddr(newConfig.ReverseTunnelAddr))
+		lb.AddBackend(*utilsaddr.MustParseAddr(newConfig.ReverseTunnelAddr))
 		return newProxy, newConfig
 	}
 
@@ -3860,7 +3861,7 @@ func testDiscoveryRecovers(t *testing.T, suite *integrationTestSuite) {
 				continue
 			}
 			if p.Config.Hostname == name {
-				require.NoError(t, lb.RemoveBackend(*utils.MustParseAddr(reverseTunnelAddr)))
+				require.NoError(t, lb.RemoveBackend(*utilsaddr.MustParseAddr(reverseTunnelAddr)))
 				require.NoError(t, p.Close())
 				require.NoError(t, p.Wait())
 				return
@@ -3936,7 +3937,7 @@ func testDiscovery(t *testing.T, suite *integrationTestSuite) {
 	username := suite.Me.Username
 
 	// create load balancer for main cluster proxies
-	frontend := *utils.MustParseAddr(net.JoinHostPort(Loopback, "0"))
+	frontend := *utilsaddr.MustParseAddr(net.JoinHostPort(Loopback, "0"))
 	lb, err := utils.NewLoadBalancer(ctx, frontend)
 	require.NoError(t, err)
 	require.NoError(t, lb.Listen())
@@ -3952,7 +3953,7 @@ func testDiscovery(t *testing.T, suite *integrationTestSuite) {
 	require.NoError(t, main.Create(t, remote.Secrets.AsSlice(), false, nil))
 	mainSecrets := main.Secrets
 	// switch listen address of the main cluster to load balancer
-	mainProxyAddr := *utils.MustParseAddr(mainSecrets.TunnelAddr)
+	mainProxyAddr := *utilsaddr.MustParseAddr(mainSecrets.TunnelAddr)
 	lb.AddBackend(mainProxyAddr)
 	mainSecrets.TunnelAddr = lb.Addr().String()
 	require.NoError(t, remote.Create(t, mainSecrets.AsSlice(), true, nil))
@@ -3979,7 +3980,7 @@ func testDiscovery(t *testing.T, suite *integrationTestSuite) {
 	require.NoError(t, err)
 
 	// add second proxy as a backend to the load balancer
-	lb.AddBackend(*utils.MustParseAddr(proxyConfig.ReverseTunnelAddr))
+	lb.AddBackend(*utilsaddr.MustParseAddr(proxyConfig.ReverseTunnelAddr))
 
 	// At this point the main cluster should observe two tunnels
 	// connected to it from remote cluster
@@ -4064,7 +4065,7 @@ func testReverseTunnelCollapse(t *testing.T, suite *integrationTestSuite) {
 	t.Cleanup(func() { lib.SetInsecureDevMode(false) })
 
 	// Create and start load balancer for proxies.
-	frontend := *utils.MustParseAddr(net.JoinHostPort(Loopback, "0"))
+	frontend := *utilsaddr.MustParseAddr(net.JoinHostPort(Loopback, "0"))
 	lb, err := utils.NewLoadBalancer(ctx, frontend)
 	require.NoError(t, err)
 	require.NoError(t, lb.Listen())
@@ -4078,7 +4079,7 @@ func testReverseTunnelCollapse(t *testing.T, suite *integrationTestSuite) {
 		tconf.Auth.Enabled = true
 
 		tconf.Proxy.Enabled = true
-		tconf.Proxy.TunnelPublicAddrs = []utils.NetAddr{
+		tconf.Proxy.TunnelPublicAddrs = []utilsaddr.NetAddr{
 			{
 				AddrNetwork: "tcp",
 				Addr:        lb.Addr().String(),
@@ -4122,9 +4123,9 @@ func testReverseTunnelCollapse(t *testing.T, suite *integrationTestSuite) {
 	fdCache, err := firstProxy.ExportFileDescriptors()
 	require.NoError(t, err)
 
-	proxyOneBackend := utils.MustParseAddr(main.ReverseTunnel)
+	proxyOneBackend := utilsaddr.MustParseAddr(main.ReverseTunnel)
 	lb.AddBackend(*proxyOneBackend)
-	proxyTwoBackend := utils.MustParseAddr(proxyConfig.ReverseTunnelAddr)
+	proxyTwoBackend := utilsaddr.MustParseAddr(proxyConfig.ReverseTunnelAddr)
 	lb.AddBackend(*proxyTwoBackend)
 
 	// Create a Teleport instance with a Node.
@@ -4132,7 +4133,7 @@ func testReverseTunnelCollapse(t *testing.T, suite *integrationTestSuite) {
 		tconf := suite.defaultServiceConfig()
 		tconf.Hostname = "cluster-main-node"
 		tconf.SetToken("token")
-		tconf.SetAuthServerAddress(utils.NetAddr{
+		tconf.SetAuthServerAddress(utilsaddr.NetAddr{
 			AddrNetwork: "tcp",
 			Addr:        proxyConfig.WebAddr,
 		})
@@ -4218,7 +4219,7 @@ func testDiscoveryNode(t *testing.T, suite *integrationTestSuite) {
 	defer lib.SetInsecureDevMode(false)
 
 	// Create and start load balancer for proxies.
-	frontend := *utils.MustParseAddr(net.JoinHostPort(Loopback, "0"))
+	frontend := *utilsaddr.MustParseAddr(net.JoinHostPort(Loopback, "0"))
 	lb, err := utils.NewLoadBalancer(ctx, frontend)
 	require.NoError(t, err)
 	err = lb.Listen()
@@ -4233,7 +4234,7 @@ func testDiscoveryNode(t *testing.T, suite *integrationTestSuite) {
 		tconf.Auth.Enabled = true
 
 		tconf.Proxy.Enabled = true
-		tconf.Proxy.TunnelPublicAddrs = []utils.NetAddr{
+		tconf.Proxy.TunnelPublicAddrs = []utilsaddr.NetAddr{
 			{
 				AddrNetwork: "tcp",
 				Addr:        lb.Addr().String(),
@@ -4262,9 +4263,9 @@ func testDiscoveryNode(t *testing.T, suite *integrationTestSuite) {
 	proxyTunnel, _, err := main.StartProxy(proxyConfig)
 	require.NoError(t, err)
 
-	proxyOneBackend := utils.MustParseAddr(main.ReverseTunnel)
+	proxyOneBackend := utilsaddr.MustParseAddr(main.ReverseTunnel)
 	lb.AddBackend(*proxyOneBackend)
-	proxyTwoBackend := utils.MustParseAddr(proxyConfig.ReverseTunnelAddr)
+	proxyTwoBackend := utilsaddr.MustParseAddr(proxyConfig.ReverseTunnelAddr)
 	lb.AddBackend(*proxyTwoBackend)
 
 	// Create a Teleport instance with a Node.
@@ -4272,7 +4273,7 @@ func testDiscoveryNode(t *testing.T, suite *integrationTestSuite) {
 		tconf := suite.defaultServiceConfig()
 		tconf.Hostname = "cluster-main-node"
 		tconf.SetToken("token")
-		tconf.SetAuthServerAddress(utils.NetAddr{
+		tconf.SetAuthServerAddress(utilsaddr.NetAddr{
 			AddrNetwork: "tcp",
 			Addr:        main.Web,
 		})
@@ -7397,14 +7398,14 @@ func testListResourcesAcrossClusters(t *testing.T, suite *integrationTestSuite) 
 			conf.DataDir = t.TempDir()
 			conf.SetToken("token")
 			conf.UploadEventsC = i.UploadEventsC
-			conf.SetAuthServerAddress(*utils.MustParseAddr(net.JoinHostPort(i.Hostname, helpers.PortStr(t, i.Web))))
+			conf.SetAuthServerAddress(*utilsaddr.MustParseAddr(net.JoinHostPort(i.Hostname, helpers.PortStr(t, i.Web))))
 			conf.HostUUID = name
 			conf.Hostname = name
 			conf.SSH.Enabled = true
 			conf.CachePolicy = servicecfg.CachePolicy{
 				Enabled: true,
 			}
-			conf.SSH.Addr = utils.NetAddr{
+			conf.SSH.Addr = utilsaddr.NetAddr{
 				Addr: helpers.NewListenerOn(t, Host, service.ListenerNodeSSH, &conf.FileDescriptors),
 			}
 			conf.Proxy.Enabled = false
@@ -8497,7 +8498,7 @@ func TestConnectivityDuringAuthRestart(t *testing.T) {
 	nodeCfg.Log = utils.NewLoggerForTests()
 	nodeCfg.CircuitBreakerConfig = breaker.NoopBreakerConfig()
 	nodeCfg.InstanceMetadataClient = cloud.NewDisabledIMDSClient()
-	nodeCfg.DiagnosticAddr = *utils.MustParseAddr(helpers.NewListener(t, service.ListenerType("diag"), &node.Fds))
+	nodeCfg.DiagnosticAddr = *utilsaddr.MustParseAddr(helpers.NewListener(t, service.ListenerType("diag"), &node.Fds))
 	nodeCfg.Auth.Enabled = false
 	// Configure Proxy.
 	nodeCfg.Proxy.Enabled = true

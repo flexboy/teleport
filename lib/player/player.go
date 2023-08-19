@@ -22,7 +22,9 @@ type Player struct {
 	sessionID session.ID
 	streamer  Streamer
 
-	speed atomic.Value
+	speed      atomic.Value
+	lastPlayed atomic.Int64
+	advanceTo  atomic.Int64
 
 	emit chan events.AuditEvent
 	done chan struct{}
@@ -77,6 +79,7 @@ func New(cfg *Config) (*Player, error) {
 	}
 
 	p.speed.Store(float64(defaultPlaybackSpeed))
+	p.advanceTo.Store(-1)
 
 	// start in a paused state
 	p.playPause <- make(chan struct{})
@@ -131,19 +134,30 @@ func (p *Player) stream() {
 				return
 			}
 
-			delay := getDelay(evt)
-			if delay > 0 && delay > lastDelay {
-				if err := p.applyDelay(time.Duration(delay-lastDelay) * time.Millisecond); err != nil {
-					close(p.emit)
-					return
+			currentDelay := getDelay(evt)
+			if currentDelay > 0 && currentDelay > lastDelay {
+				adv := p.advanceTo.Load()
+
+				// we skip the timing delay if the player is set to advance
+				// to a time in the future (we want to play as fast as possible
+				// to get there in that case)
+				if adv < currentDelay {
+					if adv != int64(-1) {
+						p.advanceTo.Store(int64(-1))
+					}
+					if err := p.applyDelay(time.Duration(currentDelay-lastDelay) * time.Millisecond); err != nil {
+						close(p.emit)
+						return
+					}
 				}
-				lastDelay = delay
+				lastDelay = currentDelay
 			}
 
 			p.log.Debugf("playing %v (%v)", evt.GetType(), evt.GetID())
 			select {
 			case p.emit <- evt:
 				p.log.Debugf("event %v was played", evt.GetID())
+				p.lastPlayed.Store(currentDelay)
 			default:
 				p.log.Warnf("dropped event %v, reader too slow", evt.GetID())
 			}
@@ -180,6 +194,15 @@ func (p *Player) Pause() error {
 // is paused.
 func (p *Player) Play() error {
 	p.setPlaying(true)
+	return nil
+}
+
+// SetPos sets playback to a specific time, expressed as a duration
+// from the beginning of the session. A duration of 0 restarts playback
+// from the beginning. A duration greater than the length of the session
+// will cause playback to rapidly advance to the end of the recording.
+func (p *Player) SetPos(d time.Duration) error {
+	p.advanceTo.Store(d.Milliseconds())
 	return nil
 }
 
@@ -233,7 +256,7 @@ func (p *Player) waitWhilePaused() error {
 // LastPlayed returns the time of the last played event,
 // expressed as milliseconds since the start of the session.
 func (p *Player) LastPlayed() int64 {
-	return 0
+	return p.lastPlayed.Load()
 }
 
 func getDelay(e events.AuditEvent) int64 {
@@ -246,6 +269,3 @@ func getDelay(e events.AuditEvent) int64 {
 		return int64(0)
 	}
 }
-
-// TODO: seek forward
-// TODO: seek backward

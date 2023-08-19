@@ -151,6 +151,44 @@ func TestClose(t *testing.T) {
 	require.False(t, ok, "player channel should have been closed")
 }
 
+func TestSeekForward(t *testing.T) {
+	clk := clockwork.NewFakeClock()
+	p, err := player.New(&player.Config{
+		Clock:     clk,
+		SessionID: "test-session",
+		Streamer:  &simpleStreamer{count: 10, delay: 1000},
+	})
+	require.NoError(t, err)
+	require.NoError(t, p.Play())
+
+	clk.BlockUntil(1) // player is now waiting to emit event 0
+
+	// advance playback until right before the last event
+	p.SetPos(9001 * time.Millisecond)
+
+	// advance the clock to unblock the player
+	// (it should now spit out all but the last event in rapid succession)
+	clk.Advance(1001 * time.Millisecond)
+
+	ch := make(chan struct{})
+	go func() {
+		defer close(ch)
+		for evt := range p.C() {
+			t.Logf("got event %v (delay=%v)", evt.GetID(), evt.GetCode())
+		}
+	}()
+
+	clk.BlockUntil(1)
+	require.Equal(t, int64(9000), p.LastPlayed())
+
+	clk.Advance(1001 * time.Millisecond)
+	select {
+	case <-ch:
+	case <-time.After(3 * time.Second):
+		require.FailNow(t, "player hasn't closed in time")
+	}
+}
+
 // simpleStreamer streams a fake session that contains
 // count events, emitted at a particular interval
 type simpleStreamer struct {
@@ -174,6 +212,7 @@ func (s *simpleStreamer) StreamSessionEvents(ctx context.Context, sessionID sess
 					Type:  events.SessionPrintEvent,
 					Index: i,
 					ID:    strconv.Itoa(int(i)),
+					Code:  strconv.FormatInt((i+1)*s.delay, 10),
 				},
 				Data:              []byte(fmt.Sprintf("event %d\n", i)),
 				ChunkIndex:        i, // TODO (deprecate this?)

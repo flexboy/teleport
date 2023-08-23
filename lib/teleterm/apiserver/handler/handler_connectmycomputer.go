@@ -21,6 +21,7 @@ import (
 	"github.com/gravitational/trace"
 
 	api "github.com/gravitational/teleport/gen/proto/go/teleport/lib/teleterm/v1"
+	"github.com/gravitational/teleport/lib/teleterm/api/uri"
 )
 
 func (s *Handler) CreateConnectMyComputerRole(ctx context.Context, req *api.CreateConnectMyComputerRoleRequest) (*api.CreateConnectMyComputerRoleResponse, error) {
@@ -53,4 +54,20 @@ func (s *Handler) CreateConnectMyComputerNodeToken(ctx context.Context, req *api
 func (s *Handler) DeleteConnectMyComputerToken(ctx context.Context, req *api.DeleteConnectMyComputerTokenRequest) (*api.DeleteConnectMyComputerTokenResponse, error) {
 	res, err := s.DaemonService.DeleteConnectMyComputerToken(ctx, req)
 	return res, trace.Wrap(err)
+}
+
+func (s *Handler) WaitForConnectMyComputerNodeJoin(ctx context.Context, req *api.WaitForConnectMyComputerNodeJoinRequest) (*api.WaitForConnectMyComputerNodeJoinResponse, error) {
+	rootClusterURI, err := uri.Parse(req.RootClusterUri)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	server, err := s.DaemonService.WaitForConnectMyComputerNodeJoin(ctx, rootClusterURI)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	return &api.WaitForConnectMyComputerNodeJoinResponse{
+		Server: newAPIServer(server),
+	}, err
 }

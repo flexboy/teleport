@@ -52,6 +52,7 @@ type Config struct {
 
 	ConnectMyComputerRoleSetup        *connectmycomputer.RoleSetup
 	ConnectMyComputerTokenProvisioner *connectmycomputer.TokenProvisioner
+	ConnectMyComputerNodeJoinWait     *connectmycomputer.NodeJoinWait
 }
 
 type CreateTshdEventsClientCredsFunc func() (grpc.DialOption, error)
@@ -97,5 +98,17 @@ func (c *Config) CheckAndSetDefaults() error {
 	if c.ConnectMyComputerTokenProvisioner == nil {
 		c.ConnectMyComputerTokenProvisioner = connectmycomputer.NewTokenProvisioner(&connectmycomputer.TokenProvisionerConfig{Clock: c.Storage.Clock})
 	}
+
+	if c.ConnectMyComputerNodeJoinWait == nil {
+		nodeJoinWait, err := connectmycomputer.NewNodeJoinWait(&connectmycomputer.NodeJoinWaitConfig{
+			AgentsDir: c.AgentsDir,
+		})
+		if err != nil {
+			return trace.Wrap(err)
+		}
+
+		c.ConnectMyComputerNodeJoinWait = nodeJoinWait
+	}
+
 	return nil
 }

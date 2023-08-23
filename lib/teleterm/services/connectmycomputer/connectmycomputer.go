@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 	"os/user"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,6 +29,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/gravitational/teleport"
+	"github.com/gravitational/teleport/api/defaults"
 	"github.com/gravitational/teleport/api/types"
 	apiutils "github.com/gravitational/teleport/api/utils"
 	"github.com/gravitational/teleport/lib/auth"
@@ -220,8 +223,8 @@ func (s *RoleSetup) syncResourceUpdate(ctx context.Context, accessAndIdentity Ac
 	return trace.Wrap(err)
 }
 
-// AccessAndIdentity represents services.Access, services.Identity and auth.Cache methods used
-// by [RoleSetup]. During a normal operation, auth.ClientI is passed as this interface.
+// AccessAndIdentity represents services.Access, services.Identity, services.Presence and auth.Cache
+// methods used by [RoleSetup]. During a normal operation, auth.ClientI is passed as this interface.
 type AccessAndIdentity interface {
 	// See services.Access.GetRole.
 	GetRole(ctx context.Context, name string) (types.Role, error)
@@ -234,6 +237,9 @@ type AccessAndIdentity interface {
 	GetUser(name string, withSecrets bool) (types.User, error)
 	// See services.Identity.UpdateUser.
 	UpdateUser(context.Context, types.User) error
+
+	// See services.Presence.GetNode.
+	GetNode(ctx context.Context, namespace, name string) (types.Server, error)
 }
 
 // CertManager enables the usage of only select methods from [client.ProxyClient] so that there
@@ -322,6 +328,119 @@ type Provisioner interface {
 	CreateToken(ctx context.Context, token types.ProvisionToken) error
 	// See services.Provisioner.DeleteToken.
 	DeleteToken(ctx context.Context, token string) error
+}
+
+type NodeJoinWait struct {
+	cfg *NodeJoinWaitConfig
+}
+
+func NewNodeJoinWait(cfg *NodeJoinWaitConfig) (*NodeJoinWait, error) {
+	err := cfg.CheckAndSetDefaults()
+	if err != nil {
+		return nil, err
+	}
+
+	return &NodeJoinWait{cfg: cfg}, nil
+}
+
+// Run grabs the host UUID of an agent from disk and then waits for the node with the given name to
+// show up in the cluster.
+//
+// The Electron app calls this method soon after starting the agent process.
+func (n *NodeJoinWait) Run(ctx context.Context, accessAndIdentity AccessAndIdentity, cluster *clusters.Cluster) (clusters.Server, error) {
+	nodeName, err := n.getNodeNameFromHostUUIDFile(ctx, cluster)
+	if err != nil {
+		return clusters.Server{}, err
+	}
+
+	server, err := n.waitForNode(ctx, accessAndIdentity, cluster, nodeName)
+	if err != nil {
+		return clusters.Server{}, trace.Wrap(err)
+	}
+
+	return clusters.Server{
+		URI:    cluster.URI.AppendServer(server.GetName()),
+		Server: server,
+	}, nil
+}
+
+func (n *NodeJoinWait) getNodeNameFromHostUUIDFile(ctx context.Context, cluster *clusters.Cluster) (string, error) {
+	hostUUIDPath := filepath.Join(n.cfg.AgentsDir, cluster.ProfileName, "data", utils.HostUUIDFile)
+
+	// NodeJoinWait gets executed when the agent is booting up, so the host UUID file might not exist
+	// on disk yet. Use a ticker to periodically check for its existence.
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			out, err := utils.ReadPath(hostUUIDPath)
+			if err != nil {
+				if trace.IsNotFound(err) {
+					continue
+				}
+				return "", trace.Wrap(err)
+			}
+
+			id := strings.TrimSpace(string(out))
+			if id == "" {
+				return "", trace.NotFound("host UUID is empty")
+			}
+
+			return id, nil
+		case <-ctx.Done():
+			return "", trace.Wrap(ctx.Err(), "waiting for host UUID file to be created")
+		}
+	}
+}
+
+func (n *NodeJoinWait) waitForNode(ctx context.Context, accessAndIdentity AccessAndIdentity,
+	cluster *clusters.Cluster, nodeName string) (types.Server, error) {
+	watcher, err := initializeWatcher(ctx, accessAndIdentity, types.KindNode)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	defer watcher.Close()
+
+	// Attempt to fetch the node from the cluster manually, in case it's joined the cluster before we
+	// started the watcher.
+	//
+	// This means that we might return immediately if the node is still in the cache, even if
+	// technically the agent has not joined the cluster yet. We're fine with this edge case.
+	server, err := accessAndIdentity.GetNode(ctx, defaults.Namespace, nodeName)
+	if err != nil {
+		if !trace.IsNotFound(err) {
+			return nil, trace.Wrap(err)
+		}
+		// Continue in case of NotFound error.
+	} else {
+		return server, nil
+	}
+
+	resource, err := waitForOpPut(ctx, watcher, types.KindNode, nodeName)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	server, ok := resource.(*types.ServerV2)
+	if !ok {
+		return nil, trace.Errorf("cannot cast event resource to server")
+	}
+
+	return server, nil
+}
+
+type NodeJoinWaitConfig struct {
+	// AgentsDir contains agent config files and data directories for Connect My Computer.
+	AgentsDir string
+}
+
+func (c *NodeJoinWaitConfig) CheckAndSetDefaults() error {
+	if c.AgentsDir == "" {
+		return trace.BadParameter("missing agents dir")
+	}
+
+	return nil
 }
 
 // initializeWatcher creates a new watcher and waits for OpInit. The caller must remember to close

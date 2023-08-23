@@ -77,7 +77,7 @@ const ConnectMyComputerContext = createContext<ConnectMyComputerContext>(null);
 
 export const ConnectMyComputerContextProvider: FC<{
   rootClusterUri: RootClusterUri;
-}> = props => {
+}> = ({ rootClusterUri, children }) => {
   const {
     mainProcessClient,
     connectMyComputerService,
@@ -93,13 +93,12 @@ export const ConnectMyComputerContextProvider: FC<{
     setAgentConfiguredAttempt,
   ] = useAsync(
     useCallback(
-      () =>
-        connectMyComputerService.isAgentConfigFileCreated(props.rootClusterUri),
-      [connectMyComputerService, props.rootClusterUri]
+      () => connectMyComputerService.isAgentConfigFileCreated(rootClusterUri),
+      [connectMyComputerService, rootClusterUri]
     )
   );
 
-  const rootCluster = clustersService.findCluster(props.rootClusterUri);
+  const rootCluster = clustersService.findCluster(rootClusterUri);
   const canUse = useMemo(
     () =>
       canUseConnectMyComputer(
@@ -120,7 +119,7 @@ export const ConnectMyComputerContextProvider: FC<{
   const [agentProcessState, setAgentProcessState] = useState<AgentProcessState>(
     () =>
       mainProcessClient.getAgentState({
-        rootClusterUri: props.rootClusterUri,
+        rootClusterUri,
       }) || {
         status: 'not-started',
       }
@@ -137,18 +136,18 @@ export const ConnectMyComputerContextProvider: FC<{
   const [startAgentAttempt, startAgent] = useAsync(
     useCallback(async () => {
       setCurrentActionKind('start');
-      await connectMyComputerService.runAgent(props.rootClusterUri);
+      await connectMyComputerService.runAgent(rootClusterUri);
 
       const abortController = createAbortController();
       try {
         const server = await Promise.race([
           connectMyComputerService.waitForNodeToJoin(
-            props.rootClusterUri,
+            rootClusterUri,
             abortController.signal
           ),
           throwOnAgentProcessErrors(
             mainProcessClient,
-            props.rootClusterUri,
+            rootClusterUri,
             abortController.signal
           ),
           wait(20_000, abortController.signal).then(() => {
@@ -158,14 +157,11 @@ export const ConnectMyComputerContextProvider: FC<{
           }),
         ]);
         setCurrentActionKind('observe-process');
-        workspacesService.setConnectMyComputerAutoStart(
-          props.rootClusterUri,
-          true
-        );
+        workspacesService.setConnectMyComputerAutoStart(rootClusterUri, true);
         return server;
       } catch (error) {
         // in case of any error kill the agent
-        await connectMyComputerService.killAgent(props.rootClusterUri);
+        await connectMyComputerService.killAgent(rootClusterUri);
         throw error;
       } finally {
         abortController.abort();
@@ -173,7 +169,7 @@ export const ConnectMyComputerContextProvider: FC<{
     }, [
       connectMyComputerService,
       mainProcessClient,
-      props.rootClusterUri,
+      rootClusterUri,
       workspacesService,
     ])
   );
@@ -189,22 +185,19 @@ export const ConnectMyComputerContextProvider: FC<{
   const [killAgentAttempt, killAgent] = useAsync(
     useCallback(async () => {
       setCurrentActionKind('kill');
-      await connectMyComputerService.killAgent(props.rootClusterUri);
+      await connectMyComputerService.killAgent(rootClusterUri);
       setCurrentActionKind('observe-process');
-      workspacesService.setConnectMyComputerAutoStart(
-        props.rootClusterUri,
-        false
-      );
-    }, [connectMyComputerService, props.rootClusterUri, workspacesService])
+      workspacesService.setConnectMyComputerAutoStart(rootClusterUri, false);
+    }, [connectMyComputerService, rootClusterUri, workspacesService])
   );
 
   useEffect(() => {
     const { cleanup } = mainProcessClient.subscribeToAgentUpdate(
-      props.rootClusterUri,
+      rootClusterUri,
       setAgentProcessState
     );
     return cleanup;
-  }, [mainProcessClient, props.rootClusterUri]);
+  }, [mainProcessClient, rootClusterUri]);
 
   let currentAction: CurrentAction;
   const kind = currentActionKind;
@@ -255,7 +248,7 @@ export const ConnectMyComputerContextProvider: FC<{
     const shouldAutoStartAgent =
       isAgentConfigured &&
       canUse &&
-      workspacesService.getConnectMyComputerAutoStart(props.rootClusterUri) &&
+      workspacesService.getConnectMyComputerAutoStart(rootClusterUri) &&
       agentIsNotStarted;
     if (shouldAutoStartAgent) {
       downloadAndStartAgent();
@@ -265,7 +258,7 @@ export const ConnectMyComputerContextProvider: FC<{
     downloadAndStartAgent,
     agentIsNotStarted,
     isAgentConfigured,
-    props.rootClusterUri,
+    rootClusterUri,
     workspacesService,
   ]);
 
@@ -285,7 +278,7 @@ export const ConnectMyComputerContextProvider: FC<{
         markAgentAsConfigured,
         isAgentConfiguredAttempt,
       }}
-      children={props.children}
+      children={children}
     />
   );
 };

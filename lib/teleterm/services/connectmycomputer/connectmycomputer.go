@@ -205,50 +205,19 @@ const resourceUpdateTimeout = 15 * time.Second
 // syncResourceUpdate calls a function which updates the given resource and then waits until the
 // cache propagates the change.
 func (s *RoleSetup) syncResourceUpdate(ctx context.Context, accessAndIdentity AccessAndIdentity, resource types.Resource, updateFunc func(context.Context) error) error {
-	watcher, err := accessAndIdentity.NewWatcher(ctx, types.Watch{
-		Kinds: []types.WatchKind{
-			{Kind: resource.GetKind()},
-		},
-	})
+	watcher, err := initializeWatcher(ctx, accessAndIdentity, resource.GetKind())
 	if err != nil {
 		return trace.Wrap(err)
 	}
 	defer watcher.Close()
-
-	// Wait for OpInit.
-	select {
-	case <-ctx.Done():
-		return trace.Wrap(ctx.Err(), "initializing watcher")
-	case <-watcher.Done():
-		return trace.Wrap(watcher.Error(), "initializing watcher")
-	case event := <-watcher.Events():
-		if event.Type != types.OpInit {
-			return trace.Errorf("unexpected event type %q received from resource watcher", event.Type)
-		}
-	}
 
 	err = updateFunc(ctx)
 	if err != nil {
 		return trace.Wrap(err, "calling update function")
 	}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return trace.Wrap(ctx.Err(), "waiting for OpPut event for %v", resource.GetName())
-		case <-watcher.Done():
-			return trace.Wrap(watcher.Error(), "waiting for OpPut event for %v", resource.GetName())
-		case event := <-watcher.Events():
-			if event.Type != types.OpPut {
-				continue
-			}
-
-			// Kind + name combo is enough to uniquely identify a resource within a single cluster.
-			if event.Resource.GetKind() == resource.GetKind() && event.Resource.GetName() == resource.GetName() {
-				return nil
-			}
-		}
-	}
+	_, err = waitForOpPut(ctx, watcher, resource.GetKind(), resource.GetName())
+	return trace.Wrap(err)
 }
 
 // AccessAndIdentity represents services.Access, services.Identity and auth.Cache methods used
@@ -353,4 +322,55 @@ type Provisioner interface {
 	CreateToken(ctx context.Context, token types.ProvisionToken) error
 	// See services.Provisioner.DeleteToken.
 	DeleteToken(ctx context.Context, token string) error
+}
+
+// initializeWatcher creates a new watcher and waits for OpInit. The caller must remember to close
+// the watcher.
+func initializeWatcher(ctx context.Context, accessAndIdentity AccessAndIdentity, kind string) (types.Watcher, error) {
+	watcher, err := accessAndIdentity.NewWatcher(ctx, types.Watch{
+		Kinds: []types.WatchKind{
+			{Kind: kind},
+		},
+	})
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	// Wait for OpInit.
+	select {
+	case <-ctx.Done():
+		watcher.Close()
+		return nil, trace.Wrap(ctx.Err(), "waiting for OpInit event")
+	case <-watcher.Done():
+		return nil, trace.Wrap(watcher.Error(), "waiting for OpInit event")
+	case event := <-watcher.Events():
+		if event.Type != types.OpInit {
+			watcher.Close()
+			return nil, trace.Errorf("unexpected event type %q received from %s watcher", event.Type, kind)
+		}
+	}
+
+	return watcher, nil
+}
+
+// waitForOpPut blocks until the watcher receives an OpPut event with a resource watching the given
+// kind and name.
+func waitForOpPut(ctx context.Context, watcher types.Watcher, kind string, name string) (types.Resource, error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, trace.Wrap(ctx.Err(), "waiting for OpPut event for %v", name)
+		case <-watcher.Done():
+			return nil, trace.Wrap(watcher.Error(), "waiting for OpPut event for %v", name)
+		case event := <-watcher.Events():
+			if event.Type != types.OpPut {
+				continue
+			}
+
+			// Kind + name combo is enough to uniquely identify a resource within a single cluster.
+			if event.Resource.GetKind() == kind && event.Resource.GetName() == name {
+				return event.Resource, nil
+			}
+		}
+	}
 }

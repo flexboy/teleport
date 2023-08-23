@@ -18,11 +18,9 @@ package secreport
 
 import (
 	"context"
-	"time"
 
 	"github.com/gravitational/trace"
 	"github.com/gravitational/trace/trail"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/gravitational/teleport/api/gen/proto/go/teleport/secreports/v1"
 	"github.com/gravitational/teleport/api/types/secreports"
@@ -134,11 +132,10 @@ func (c *Client) ListSecurityReport(ctx context.Context) ([]*secreports.Security
 	return out, nil
 }
 
-func (c *Client) GetSecurityReportsDetails(ctx context.Context, name string, from, to time.Time) (*pb.GetSecurityReportDetailsResponse, error) {
+func (c *Client) GetSecurityReportsDetails(ctx context.Context, name string, days int) (*pb.GetSecurityReportDetailsResponse, error) {
 	resp, err := c.grpcClient.GetSecurityReportDetails(ctx, &pb.GetSecurityReportDetailsRequest{
-		Name:      name,
-		StartData: timestamppb.New(from),
-		EndDate:   timestamppb.New(to),
+		Name: name,
+		Days: int32(days),
 	})
 	if err != nil {
 		return nil, trail.FromGRPC(err)
@@ -146,8 +143,11 @@ func (c *Client) GetSecurityReportsDetails(ctx context.Context, name string, fro
 	return resp, nil
 }
 
-func (c *Client) RunSecurityReport(ctx context.Context, name string) error {
-	_, err := c.grpcClient.RunSecurityReport(ctx, &pb.RunSecurityReportRequest{Name: name})
+func (c *Client) RunSecurityReport(ctx context.Context, name string, days int) error {
+	if days == 0 {
+		days = 7
+	}
+	_, err := c.grpcClient.RunSecurityReport(ctx, &pb.RunSecurityReportRequest{Name: name, Days: uint32(days)})
 	if err != nil {
 		return trail.FromGRPC(err)
 	}

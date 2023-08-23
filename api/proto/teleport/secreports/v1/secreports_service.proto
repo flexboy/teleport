@@ -17,7 +17,6 @@ syntax = "proto3";
 package teleport.secreports.v1;
 
 import "google/protobuf/empty.proto";
-import "google/protobuf/timestamp.proto";
 import "teleport/secreports/v1/secreports.proto";
 
 option go_package = "github.com/gravitational/teleport/api/gen/proto/go/teleport/secreports/v1;secreportsv1";
@@ -57,8 +56,9 @@ service SecReportsService {
 message RunSecurityReportRequest {
   // name of the security report
   string name = 1;
-  google.protobuf.Timestamp start_data = 2;
-  google.protobuf.Timestamp end_date = 3;
+
+  // days is a time range is days.
+  uint32 days = 2;
 }
 
 // DeleteAuditQueryRequest is
@@ -81,10 +81,8 @@ message RunAuditQueryRequest {
     // sql_text
     string sql_text = 2;
   }
-  // start_date is ..
-  google.protobuf.Timestamp start_data = 3;
-  // end_date is ..
-  google.protobuf.Timestamp end_date = 4;
+  // Time range in days
+  int32 days = 3;
 }
 
 // UpsertAuditQueryRequest ...
@@ -115,10 +113,9 @@ message GetSecurityReportRequest {
 message GetSecurityReportDetailsRequest {
   // name is ...
   string name = 1;
-  // start_date is ..
-  google.protobuf.Timestamp start_data = 2;
-  // end_date is ..
-  google.protobuf.Timestamp end_date = 3;
+
+  // Time range in days
+  int32 days = 2;
 }
 
 // ListAuditQueryRequest is

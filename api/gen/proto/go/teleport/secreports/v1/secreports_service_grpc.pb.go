@@ -56,7 +56,7 @@ type SecReportsServiceClient interface {
 	UpsertAuditQuery(ctx context.Context, in *UpsertAuditQueryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// GetAuditQuery is ..
 	GetAuditQuery(ctx context.Context, in *GetAuditQueryRequest, opts ...grpc.CallOption) (*AuditQuery, error)
-	// ListOktaImportRules returns a paginated list of all Okta import rule resources.
+	// rpc ListAuditQuery(ListAuditQueryRequest) returns (ListAuditQueryResponse); returns a paginated list of all Okta import rule resources.
 	ListAuditQuery(ctx context.Context, in *ListAuditQueryRequest, opts ...grpc.CallOption) (*ListAuditQueryResponse, error)
 	// DeleteAuditQuery is ..
 	DeleteAuditQuery(ctx context.Context, in *DeleteAuditQueryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
@@ -202,7 +202,7 @@ type SecReportsServiceServer interface {
 	UpsertAuditQuery(context.Context, *UpsertAuditQueryRequest) (*emptypb.Empty, error)
 	// GetAuditQuery is ..
 	GetAuditQuery(context.Context, *GetAuditQueryRequest) (*AuditQuery, error)
-	// ListOktaImportRules returns a paginated list of all Okta import rule resources.
+	// rpc ListAuditQuery(ListAuditQueryRequest) returns (ListAuditQueryResponse); returns a paginated list of all Okta import rule resources.
 	ListAuditQuery(context.Context, *ListAuditQueryRequest) (*ListAuditQueryResponse, error)
 	// DeleteAuditQuery is ..
 	DeleteAuditQuery(context.Context, *DeleteAuditQueryRequest) (*emptypb.Empty, error)

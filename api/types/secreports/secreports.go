@@ -39,6 +39,9 @@ type SecurityReportSpec struct {
 	Desc string `json:"desc,omitempty" yaml:"desc,omitempty"`
 	//Result is ...
 	Queries []string `json:"queries,omitempty" yaml:"queries,omitempty"`
+
+	// Result s3 bucket.
+	ResultObj string `json:"result_obj,omitempty" yaml:"result_obj,omitempty"`
 }
 
 // AuditQuery is ...

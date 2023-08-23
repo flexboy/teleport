@@ -43,13 +43,14 @@ func (c *Client) GetSchema(ctx context.Context) (*pb.GetSchemaResponse, error) {
 	return resp, nil
 }
 
-func (c *Client) RunAuditQuery(ctx context.Context, queryText string, queryName string) (*pb.RunAuditQueryResponse, error) {
+func (c *Client) RunAuditQuery(ctx context.Context, queryText string, queryName string, days int) (*pb.RunAuditQueryResponse, error) {
 	var req pb.RunAuditQueryRequest
 	if queryText != "" {
 		req.Query = &pb.RunAuditQueryRequest_SqlText{SqlText: queryText}
 	} else {
 		req.Query = &pb.RunAuditQueryRequest_Name{Name: queryName}
 	}
+	req.Days = int32(days)
 
 	resp, err := c.grpcClient.RunAuditQuery(ctx, &req)
 	if err != nil {

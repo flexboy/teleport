@@ -23,15 +23,12 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-
-import { wait } from 'shared/utils/wait';
-
 import { Attempt, makeSuccessAttempt, useAsync } from 'shared/hooks/useAsync';
 
 import { RootClusterUri } from 'teleterm/ui/uri';
 import { useAppContext } from 'teleterm/ui/appContextProvider';
-
-import { Server } from 'teleterm/services/tshd/types';
+import { Server, TshAbortSignal } from 'teleterm/services/tshd/types';
+import createAbortController from 'teleterm/services/tshd/createAbortController';
 
 import { assertUnreachable } from '../utils';
 
@@ -142,7 +139,7 @@ export const ConnectMyComputerContextProvider: FC<{
       setCurrentActionKind('start');
       await connectMyComputerService.runAgent(props.rootClusterUri);
 
-      const abortController = new AbortController();
+      const abortController = createAbortController();
       try {
         const server = await Promise.race([
           connectMyComputerService.waitForNodeToJoin(
@@ -311,7 +308,7 @@ export const useConnectMyComputerContext = () => {
 function throwOnAgentProcessErrors(
   mainProcessClient: MainProcessClient,
   rootClusterUri: RootClusterUri,
-  abortSignal: AbortSignal
+  abortSignal: TshAbortSignal
 ): Promise<never> {
   return new Promise((_, reject) => {
     const rejectOnError = (agentProcessState: AgentProcessState) => {
@@ -330,12 +327,12 @@ function throwOnAgentProcessErrors(
       rootClusterUri,
       rejectOnError
     );
-    abortSignal.onabort = () => {
+    abortSignal.addEventListener(() => {
       cleanup();
       reject(
         new DOMException('throwOnAgentProcessErrors was aborted', 'AbortError')
       );
-    };
+    });
 
     // the state may have changed before we started listening, we have to check the current state
     rejectOnError(
@@ -351,4 +348,21 @@ export class AgentProcessError extends Error {
     super('AgentProcessError');
     this.name = 'AgentProcessError';
   }
+}
+
+/**
+ * wait is like wait from the shared package, but it works with TshAbortSignal.
+ * TODO(ravicious): Refactor TshAbortSignal so that its interface is the same as AbortSignal.
+ * See the comment in createAbortController for more details.
+ */
+function wait(ms: number, abortSignal: TshAbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(resolve, ms);
+    if (abortSignal) {
+      abortSignal.addEventListener(() => {
+        clearTimeout(timeout);
+        reject(new DOMException('Wait was aborted.', 'AbortError'));
+      });
+    }
+  });
 }

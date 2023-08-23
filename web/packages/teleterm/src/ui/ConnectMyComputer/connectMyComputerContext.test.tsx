@@ -126,6 +126,7 @@ test('startAgent re-throws errors that are thrown while spawning the process', a
       status: 'error',
       message: 'ENOENT',
     },
+    timeoutLogs: '',
   });
   expect(error).toBeInstanceOf(AgentProcessError);
 });

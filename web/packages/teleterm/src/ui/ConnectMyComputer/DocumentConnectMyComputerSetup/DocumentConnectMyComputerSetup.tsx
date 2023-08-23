@@ -34,6 +34,7 @@ import { useWorkspaceContext } from 'teleterm/ui/Documents';
 import { retryWithRelogin } from 'teleterm/ui/utils';
 import {
   AgentProcessError,
+  NodeWaitJoinTimeout,
   useConnectMyComputerContext,
 } from 'teleterm/ui/ConnectMyComputer';
 import Logger from 'teleterm/logger';
@@ -146,6 +147,7 @@ function AgentSetup({ rootClusterUri }: { rootClusterUri: RootClusterUri }) {
     downloadAgentAttempt,
     setDownloadAgentAttempt,
     agentProcessState,
+    logsFromStartTimeout,
   } = useConnectMyComputerContext();
   const cluster = ctx.clustersService.findCluster(rootClusterUri);
   const nodeToken = useRef<string>();
@@ -237,6 +239,20 @@ function AgentSetup({ rootClusterUri }: { rootClusterUri: RootClusterUri }) {
       customError: () => {
         if (joinClusterAttempt.status !== 'error') {
           return;
+        }
+
+        if (joinClusterAttempt.statusText === NodeWaitJoinTimeout.name) {
+          return (
+            <>
+              <StandardError
+                error={
+                  'The agent did not join the cluster within the timeout window.'
+                }
+                mb={1}
+              />
+              <Logs logs={logsFromStartTimeout} />
+            </>
+          );
         }
 
         if (joinClusterAttempt.statusText !== AgentProcessError.name) {

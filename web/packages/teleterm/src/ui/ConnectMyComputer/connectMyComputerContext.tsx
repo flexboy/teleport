@@ -48,6 +48,11 @@ export type CurrentAction =
       kind: 'start';
       attempt: Attempt<Server>;
       agentProcessState: AgentProcessState;
+      /**
+       * timeoutLogs contains the last 10 lines of logs captured at the time of the start attempt
+       * timing out. Present only if the attempt timed out.
+       */
+      timeoutLogs: string;
     }
   | {
       kind: 'observe-process';
@@ -71,6 +76,13 @@ export interface ConnectMyComputerContext {
   killAgent(): Promise<[void, Error]>;
   isAgentConfiguredAttempt: Attempt<boolean>;
   markAgentAsConfigured(): void;
+  /**
+   * logsFromStartTimeout contains the last 10 lines of logs captured at the time of the start
+   * attempt timing out. Present only if the attempt timed out.
+   *
+   * Prefer to use timeoutLogs from currentAction if possible.
+   */
+  logsFromStartTimeout: string;
 }
 
 const ConnectMyComputerContext = createContext<ConnectMyComputerContext>(null);
@@ -115,6 +127,7 @@ export const ConnectMyComputerContextProvider: FC<{
 
   const [currentActionKind, setCurrentActionKind] =
     useState<CurrentAction['kind']>('observe-process');
+  const [logsFromStartTimeout, setLogsFromStartTimeout] = useState('');
 
   const [agentProcessState, setAgentProcessState] = useState<AgentProcessState>(
     () =>
@@ -136,6 +149,8 @@ export const ConnectMyComputerContextProvider: FC<{
   const [startAgentAttempt, startAgent] = useAsync(
     useCallback(async () => {
       setCurrentActionKind('start');
+      setLogsFromStartTimeout('');
+
       await connectMyComputerService.runAgent(rootClusterUri);
 
       const abortController = createAbortController();
@@ -151,9 +166,10 @@ export const ConnectMyComputerContextProvider: FC<{
             abortController.signal
           ),
           wait(20_000, abortController.signal).then(() => {
-            throw new Error(
-              'The agent did not manage to join the cluster within 20 seconds.'
+            setLogsFromStartTimeout(
+              mainProcessClient.getAgentLogs({ rootClusterUri })
             );
+            throw new NodeWaitJoinTimeout();
           }),
         ]);
         setCurrentActionKind('observe-process');
@@ -208,7 +224,12 @@ export const ConnectMyComputerContextProvider: FC<{
       break;
     }
     case 'start': {
-      currentAction = { kind, attempt: startAgentAttempt, agentProcessState };
+      currentAction = {
+        kind,
+        attempt: startAgentAttempt,
+        agentProcessState,
+        timeoutLogs: logsFromStartTimeout,
+      };
       break;
     }
     case 'observe-process': {
@@ -277,6 +298,7 @@ export const ConnectMyComputerContextProvider: FC<{
         downloadAndStartAgent,
         markAgentAsConfigured,
         isAgentConfiguredAttempt,
+        logsFromStartTimeout,
       }}
       children={children}
     />
@@ -340,6 +362,13 @@ export class AgentProcessError extends Error {
   constructor() {
     super('AgentProcessError');
     this.name = 'AgentProcessError';
+  }
+}
+
+export class NodeWaitJoinTimeout extends Error {
+  constructor() {
+    super('NodeWaitJoinTimeout');
+    this.name = 'NodeWaitJoinTimeout';
   }
 }
 

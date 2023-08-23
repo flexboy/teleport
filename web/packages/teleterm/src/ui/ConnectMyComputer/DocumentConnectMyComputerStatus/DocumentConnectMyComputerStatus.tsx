@@ -36,6 +36,7 @@ import Indicator from 'design/Indicator';
 import {
   AgentProcessError,
   CurrentAction,
+  NodeWaitJoinTimeout,
   useConnectMyComputerContext,
 } from 'teleterm/ui/ConnectMyComputer';
 import Document from 'teleterm/ui/Document';
@@ -267,6 +268,16 @@ function prettifyCurrentAction(currentAction: CurrentAction): {
           };
         }
         case 'error': {
+          if (currentAction.attempt.statusText === NodeWaitJoinTimeout.name) {
+            return {
+              Icon: StyledWarning,
+              title: 'Failed to start agent',
+              error:
+                'The agent did not join the cluster within the timeout window.',
+              logs: currentAction.timeoutLogs,
+            };
+          }
+
           if (currentAction.attempt.statusText !== AgentProcessError.name) {
             return {
               Icon: StyledWarning,

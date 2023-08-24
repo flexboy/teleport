@@ -203,6 +203,9 @@ message GetSecurityReportDetailsResponse {
   }
   // audit_queries contains information about audit query.
   repeated AuditQuery audit_queries = 3;
+
+  // UpdatedAt is
+  string updated_at = 4;
 }
 
 // QueryResult is proto representation of audit query result.

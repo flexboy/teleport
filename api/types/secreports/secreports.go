@@ -17,6 +17,8 @@ limitations under the License.
 package secreports
 
 import (
+	"time"
+
 	"github.com/gravitational/trace"
 
 	"github.com/gravitational/teleport/api/types"
@@ -41,7 +43,8 @@ type SecurityReportSpec struct {
 	Queries []string `json:"queries,omitempty" yaml:"queries,omitempty"`
 
 	// Result s3 bucket.
-	ResultObj string `json:"result_obj,omitempty" yaml:"result_obj,omitempty"`
+	ResultObj     string `json:"result_obj,omitempty" yaml:"result_obj,omitempty"`
+	UpdateTimeMap map[int]string
 }
 
 // AuditQuery is ...
@@ -104,6 +107,13 @@ func (a *SecurityReport) CheckAndSetDefaults() error {
 		return trace.Wrap(err)
 	}
 	return nil
+}
+
+func (a *SecurityReport) SetUpdateTime(days int, updatedAt time.Time) {
+	if a.Spec.UpdateTimeMap == nil {
+		a.Spec.UpdateTimeMap = make(map[int]string)
+	}
+	a.Spec.UpdateTimeMap[days] = updatedAt.UTC().Format(time.RFC3339)
 }
 
 // GetMetadata returns metadata. This is specifically for conforming to the Resource interface,

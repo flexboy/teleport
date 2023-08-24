@@ -717,6 +717,7 @@ func testWaitForConnectMyComputerNodeJoin(t *testing.T, pack *dbhelpers.Database
 	require.NoError(t, err)
 
 	profileName, _, err := net.SplitHostPort(pack.Root.Cluster.Web)
+	require.NoError(t, err)
 
 	waitForNodeJoinErr := make(chan error)
 

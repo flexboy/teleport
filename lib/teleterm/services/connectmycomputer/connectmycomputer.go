@@ -365,7 +365,7 @@ func (n *NodeJoinWait) Run(ctx context.Context, accessAndIdentity AccessAndIdent
 }
 
 func (n *NodeJoinWait) getNodeNameFromHostUUIDFile(ctx context.Context, cluster *clusters.Cluster) (string, error) {
-	hostUUIDPath := filepath.Join(n.cfg.AgentsDir, cluster.ProfileName, "data", utils.HostUUIDFile)
+	dataDir := filepath.Join(n.cfg.AgentsDir, cluster.ProfileName, "data")
 
 	// NodeJoinWait gets executed when the agent is booting up, so the host UUID file might not exist
 	// on disk yet. Use a ticker to periodically check for its existence.
@@ -375,7 +375,12 @@ func (n *NodeJoinWait) getNodeNameFromHostUUIDFile(ctx context.Context, cluster 
 	for {
 		select {
 		case <-ticker.C:
-			out, err := utils.ReadPath(hostUUIDPath)
+			// We're reading the host UUID file by ourselves rather than using utils.ReadHostUUID, because
+			// that function returns NotFound both when the file doesn't exist and when the host UUID in
+			// the file is empty.
+			//
+			// Here we need to be able to distinguish between both of those two cases.
+			out, err := utils.ReadPath(utils.GetHostUUIDPath(dataDir))
 			if err != nil {
 				if trace.IsNotFound(err) {
 					continue

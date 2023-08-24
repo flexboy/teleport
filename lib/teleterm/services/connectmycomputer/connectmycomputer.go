@@ -348,12 +348,21 @@ func NewNodeJoinWait(cfg *NodeJoinWaitConfig) (*NodeJoinWait, error) {
 //
 // The Electron app calls this method soon after starting the agent process.
 func (n *NodeJoinWait) Run(ctx context.Context, accessAndIdentity AccessAndIdentity, cluster *clusters.Cluster) (clusters.Server, error) {
-	nodeName, err := n.getNodeNameFromHostUUIDFile(ctx, cluster)
+	// The Electron app aborts the request which calls NodeJoinWait after a timeout, but let's use a
+	// timeout internally as well. Both operations in this struct theoretically block forever if an
+	// error happens elsewhere and gRPC doesn't set a timeout by default.
+	//
+	// If there's a bug in the Electron app and it forgets to abort the request, at least the request
+	// will not hang forever.
+	timeoutCtx, close := context.WithTimeout(ctx, time.Minute)
+	defer close()
+
+	nodeName, err := n.getNodeNameFromHostUUIDFile(timeoutCtx, cluster)
 	if err != nil {
 		return clusters.Server{}, err
 	}
 
-	server, err := n.waitForNode(ctx, accessAndIdentity, cluster, nodeName)
+	server, err := n.waitForNode(timeoutCtx, accessAndIdentity, cluster, nodeName)
 	if err != nil {
 		return clusters.Server{}, trace.Wrap(err)
 	}

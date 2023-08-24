@@ -85,6 +85,13 @@ func (s *SecReportsService) UpsertAuditQuery(ctx context.Context, in *secreports
 	return nil
 }
 
+func (s *SecReportsService) CreateAuditQuery(ctx context.Context, in *secreports.AuditQuery) error {
+	if err := s.auditQuerySvc.UpsertResource(ctx, in); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
 // GetAuditQuery is ..
 func (s *SecReportsService) GetAuditQuery(ctx context.Context, name string) (*secreports.AuditQuery, error) {
 	r, err := s.auditQuerySvc.GetResource(ctx, name)
@@ -104,6 +111,13 @@ func (s *SecReportsService) ListAuditQuery(ctx context.Context, pageSize int, ne
 
 func (s *SecReportsService) DeleteAuditQuery(ctx context.Context, name string) error {
 	return trace.Wrap(s.auditQuerySvc.DeleteResource(ctx, name))
+}
+
+func (s *SecReportsService) CreateSecurityReports(ctx context.Context, item *secreports.SecurityReport) error {
+	if err := s.securityReportSvc.CreateResource(ctx, item); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
 }
 
 func (s *SecReportsService) UpsertSecurityReports(ctx context.Context, item *secreports.SecurityReport) error {

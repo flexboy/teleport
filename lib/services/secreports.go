@@ -28,9 +28,11 @@ import (
 // SecReports is
 type SecReports interface {
 	GetAuditQuery(ctx context.Context, name string) (*secreports.AuditQuery, error)
+	CreateAuditQuery(ctx context.Context, in *secreports.AuditQuery) error
 	UpsertAuditQuery(ctx context.Context, in *secreports.AuditQuery) error
 	ListAuditQuery(context.Context, int, string) ([]*secreports.AuditQuery, string, error)
 	DeleteAuditQuery(ctx context.Context, name string) error
+	CreateSecurityReports(ctx context.Context, item *secreports.SecurityReport) error
 	UpsertSecurityReports(ctx context.Context, item *secreports.SecurityReport) error
 	GetSecurityReport(ctx context.Context, name string) (*secreports.SecurityReport, error)
 	ListSecurityReport(ctx context.Context, i int, token string) ([]*secreports.SecurityReport, string, error)

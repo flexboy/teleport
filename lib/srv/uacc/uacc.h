@@ -235,4 +235,35 @@ static int uacc_has_entry_with_user(const char *utmp_path, const char *user) {
     return errno == 0 ? UACC_UTMP_ENTRY_DOES_NOT_EXIST : errno;
 }
 
+static int uacc_add_btmp_entry(const char *btmp_path, const char *username,
+  const char *hostname, const int32_t remote_addr_v6[4],
+  int32_t tv_sec, int32_t tv_usec) {
+
+    if (btmp_path == NULL) {
+      // Return open failed error if any of the provided paths is NULL.
+      return UACC_UTMP_FAILED_OPEN;
+    }
+
+    UACC_PATH_ERR = NULL;
+    char resolved_btmp_buffer[PATH_MAX];
+    const char* file = realpath(btmp_path, &resolved_btmp_buffer[0]);
+
+    int status = check_abs_path_err(file);
+    if (status != 0) {
+        return status;
+    }
+
+    struct utmp entry = {
+        .ut_type = USER_PROCESS,
+        .ut_tv.tv_sec = tv_sec,
+        .ut_tv.tv_usec = tv_usec
+    };
+    strncpy((char*) &entry.ut_host, hostname, sizeof(entry.ut_host));
+    strncpy((char*) &entry.ut_user, username, sizeof(entry.ut_user));
+    memcpy(&entry.ut_addr_v6, &remote_addr_v6, sizeof(int32_t) * 4);
+
+    updwtmp(file, &entry);
+    return 0;
+}
+
 #endif

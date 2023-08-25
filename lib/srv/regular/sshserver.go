@@ -184,6 +184,8 @@ type Server struct {
 	// wtmpPath is the path to the user accounting s.Logger.
 	wtmpPath string
 
+	btmpPath string
+
 	// allowTCPForwarding indicates whether the ssh server is allowed to offer
 	// TCP port forwarding.
 	allowTCPForwarding bool
@@ -405,10 +407,11 @@ func (s *Server) HandleConnection(conn net.Conn) {
 }
 
 // SetUtmpPath is a functional server option to override the user accounting database and log path.
-func SetUtmpPath(utmpPath, wtmpPath string) ServerOption {
+func SetUtmpPath(utmpPath, wtmpPath, btmpPath string) ServerOption {
 	return func(s *Server) error {
 		s.utmpPath = utmpPath
 		s.wtmpPath = wtmpPath
+		s.btmpPath = btmpPath
 		return nil
 	}
 }

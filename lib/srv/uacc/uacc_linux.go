@@ -57,6 +57,7 @@ const (
 	// wtmpAltFilePath exists only because on some system the path is different.
 	// It's being used when the wtmp path is not provided and the wtmpFilePath doesn't exist.
 	wtmpAltFilePath = "/var/run/wtmp"
+	btmpFilePath    = "/var/log/btmp"
 )
 
 // Open writes a new entry to the utmp database with a tag of `USER_PROCESS`.
@@ -201,6 +202,13 @@ func getDefaultPaths(utmpPath, wtmpPath string) (string, string) {
 	return utmpPath, wtmpPath
 }
 
+func getDefaultBTMPPath(btmpPath string) string {
+	if btmpPath == "" {
+		return btmpFilePath
+	}
+	return btmpPath
+}
+
 // UserWithPtyInDatabase checks the user accounting database for the existence of an USER_PROCESS entry with the given username.
 func UserWithPtyInDatabase(utmpPath string, username string) error {
 	if len(username) > userMaxLen {
@@ -225,6 +233,54 @@ func UserWithPtyInDatabase(utmpPath string, username string) error {
 		return trace.AccessDenied("failed to open user account database, code: %d", errno)
 	case C.UACC_UTMP_ENTRY_DOES_NOT_EXIST:
 		return trace.NotFound("user not found")
+	case C.UACC_UTMP_FAILED_TO_SELECT_FILE:
+		return trace.BadParameter("failed to select file")
+	case C.UACC_UTMP_PATH_DOES_NOT_EXIST:
+		return trace.NotFound("user accounting files are missing from the system, running in a container?")
+	default:
+		return decodeUnknownError(int(status))
+	}
+}
+
+func OpenError(btmpPath, username, hostname string, remote [4]int32) error {
+	// String parameter validation.
+	if len(username) > userMaxLen {
+		return trace.BadParameter("username length exceeds OS limits")
+	}
+	if len(hostname) > hostMaxLen {
+		return trace.BadParameter("hostname length exceeds OS limits")
+	}
+
+	btmpPath = getDefaultBTMPPath(btmpPath)
+	// Convert Go strings into C strings that we can pass over ffi.
+	cBtmpPath := C.CString(btmpPath)
+	defer C.free(unsafe.Pointer(cBtmpPath))
+	cUsername := C.CString(username)
+	defer C.free(unsafe.Pointer(cUsername))
+	cHostname := C.CString(hostname)
+	defer C.free(unsafe.Pointer(cHostname))
+
+	// Convert IPv6 array into C integer format.
+	cIP := [4]C.int{0, 0, 0, 0}
+	for i := 0; i < 4; i++ {
+		cIP[i] = (C.int)(remote[i])
+	}
+
+	timestamp := time.Now()
+	secondsElapsed := (C.int32_t)(timestamp.Unix())
+	microsFraction := (C.int32_t)((timestamp.UnixNano() % int64(time.Second)) / int64(time.Microsecond))
+
+	accountDb.Lock()
+	defer accountDb.Unlock()
+
+	status, errno := C.uacc_add_btmp_entry(cBtmpPath, cUsername, cHostname, &cIP[0], secondsElapsed, microsFraction)
+	switch status {
+	case C.UACC_UTMP_MISSING_PERMISSIONS:
+		return trace.AccessDenied("missing permissions to write to utmp/wtmp")
+	case C.UACC_UTMP_WRITE_ERROR:
+		return trace.AccessDenied("failed to add entry to utmp database")
+	case C.UACC_UTMP_FAILED_OPEN:
+		return trace.AccessDenied("failed to open user account database, code: %d", errno)
 	case C.UACC_UTMP_FAILED_TO_SELECT_FILE:
 		return trace.BadParameter("failed to select file")
 	case C.UACC_UTMP_PATH_DOES_NOT_EXIST:

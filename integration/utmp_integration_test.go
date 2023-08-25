@@ -18,6 +18,7 @@ package integration
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -51,6 +52,8 @@ import (
 // teleportTestUser is additional user used for tests
 const teleportTestUser = "teleport-test"
 
+const fakeTeleportUser = "teleport-fake"
+
 // wildcardAllow is used in tests to allow access to all labels.
 var wildcardAllow = types.Labels{
 	types.Wildcard: []string{types.Wildcard},
@@ -64,6 +67,8 @@ type SrvCtx struct {
 	nodeClient *auth.Client
 	nodeID     string
 	utmpPath   string
+	wtmpPath   string
+	btmpPath   string
 }
 
 // TestRootUTMPEntryExists verifies that user accounting is done on supported systems.
@@ -74,49 +79,59 @@ func TestRootUTMPEntryExists(t *testing.T) {
 
 	ctx := context.Background()
 	s := newSrvCtx(ctx, t)
-	up, err := newUpack(ctx, s, teleportTestUser, []string{teleportTestUser}, wildcardAllow)
+	up, err := newUpack(ctx, s, teleportTestUser, []string{teleportTestUser, fakeTeleportUser}, wildcardAllow)
 	require.NoError(t, err)
 
-	sshConfig := &ssh.ClientConfig{
-		User:            teleportTestUser,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(up.certSigner)},
-		HostKeyCallback: ssh.FixedHostKey(s.signer.PublicKey()),
-	}
+	t.Run("successful login is logged in utmp and wtmp", func(t *testing.T) {
+		sshConfig := &ssh.ClientConfig{
+			User:            teleportTestUser,
+			Auth:            []ssh.AuthMethod{ssh.PublicKeys(up.certSigner)},
+			HostKeyCallback: ssh.FixedHostKey(s.signer.PublicKey()),
+		}
 
-	client, err := ssh.Dial("tcp", s.srv.Addr(), sshConfig)
-	require.NoError(t, err)
-	defer func() {
-		err := client.Close()
+		client, err := ssh.Dial("tcp", s.srv.Addr(), sshConfig)
 		require.NoError(t, err)
-	}()
-
-	se, err := client.NewSession()
-	require.NoError(t, err)
-	defer se.Close()
-
-	modes := ssh.TerminalModes{
-		ssh.ECHO:          0,     // disable echoing
-		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
-		ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
-	}
-
-	require.NoError(t, se.RequestPty("xterm", 80, 80, modes), nil)
-	err = se.Shell()
-	require.NoError(t, err)
-
-	start := time.Now()
-	for time.Since(start) < 5*time.Minute {
-		time.Sleep(time.Second)
-		entryExists := uacc.UserWithPtyInDatabase(s.utmpPath, teleportTestUser)
-		if entryExists == nil {
-			return
-		}
-		if !trace.IsNotFound(entryExists) {
+		defer func() {
+			err := client.Close()
 			require.NoError(t, err)
-		}
-	}
+		}()
 
-	t.Errorf("did not detect utmp entry within 5 minutes")
+		se, err := client.NewSession()
+		require.NoError(t, err)
+		defer se.Close()
+
+		modes := ssh.TerminalModes{
+			ssh.ECHO:          0,     // disable echoing
+			ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
+			ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
+		}
+
+		require.NoError(t, se.RequestPty("xterm", 80, 80, modes), nil)
+		err = se.Shell()
+		require.NoError(t, err)
+
+		start := time.Now()
+		for time.Since(start) < 5*time.Minute {
+			time.Sleep(time.Second)
+			utmpEntryExists := uacc.UserWithPtyInDatabase(s.utmpPath, teleportTestUser)
+			wtmpEntryExists := uacc.UserWithPtyInDatabase(s.wtmpPath, teleportTestUser)
+			if utmpEntryExists == nil && wtmpEntryExists == nil {
+				return
+			}
+			fmt.Printf("utmp err: %v\nwtmp err: %v\n", utmpEntryExists, wtmpEntryExists)
+			if !trace.IsNotFound(utmpEntryExists) {
+				require.NoError(t, err)
+			}
+			if !trace.IsNotFound(wtmpEntryExists) {
+				require.NoError(t, err)
+			}
+		}
+
+		t.Errorf("did not detect utmp entry within 5 minutes")
+	})
+
+	// t.Run("unsuccessful login is logged in btmp", func(t *testing.T) {})
+
 }
 
 // TestUsernameLimit tests that the maximum length of usernames is a hard error.
@@ -244,11 +259,13 @@ func newSrvCtx(ctx context.Context, t *testing.T) *SrvCtx {
 	uaccDir := t.TempDir()
 	utmpPath := path.Join(uaccDir, "utmp")
 	wtmpPath := path.Join(uaccDir, "wtmp")
-	err = TouchFile(utmpPath)
-	require.NoError(t, err)
-	err = TouchFile(wtmpPath)
-	require.NoError(t, err)
+	btmpPath := path.Join(uaccDir, "btmp")
+	require.NoError(t, TouchFile(utmpPath))
+	require.NoError(t, TouchFile(wtmpPath))
+	require.NoError(t, TouchFile(btmpPath))
 	s.utmpPath = utmpPath
+	s.wtmpPath = wtmpPath
+	s.btmpPath = btmpPath
 
 	lockWatcher, err := services.NewLockWatcher(ctx, services.LockWatcherConfig{
 		ResourceWatcherConfig: services.ResourceWatcherConfig{
@@ -297,7 +314,7 @@ func newSrvCtx(ctx context.Context, t *testing.T) *SrvCtx {
 		regular.SetBPF(&bpf.NOP{}),
 		regular.SetRestrictedSessionManager(&restricted.NOP{}),
 		regular.SetClock(s.clock),
-		regular.SetUtmpPath(utmpPath, utmpPath),
+		regular.SetUtmpPath(utmpPath, wtmpPath, btmpPath),
 		regular.SetLockWatcher(lockWatcher),
 		regular.SetSessionController(nodeSessionController),
 	)

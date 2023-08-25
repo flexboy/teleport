@@ -66,6 +66,8 @@ const (
 	TerminalService_CreateConnectMyComputerNodeToken_FullMethodName  = "/teleport.lib.teleterm.v1.TerminalService/CreateConnectMyComputerNodeToken"
 	TerminalService_DeleteConnectMyComputerToken_FullMethodName      = "/teleport.lib.teleterm.v1.TerminalService/DeleteConnectMyComputerToken"
 	TerminalService_WaitForConnectMyComputerNodeJoin_FullMethodName  = "/teleport.lib.teleterm.v1.TerminalService/WaitForConnectMyComputerNodeJoin"
+	TerminalService_DeleteConnectMyComputerNode_FullMethodName       = "/teleport.lib.teleterm.v1.TerminalService/DeleteConnectMyComputerNode"
+	TerminalService_GetConnectMyComputerNodeName_FullMethodName      = "/teleport.lib.teleterm.v1.TerminalService/GetConnectMyComputerNodeName"
 )
 
 // TerminalServiceClient is the client API for TerminalService service.
@@ -169,6 +171,10 @@ type TerminalServiceClient interface {
 	// that the Connect My Computer node for the particular cluster has joined the cluster (the
 	// OpPut event).
 	WaitForConnectMyComputerNodeJoin(ctx context.Context, in *WaitForConnectMyComputerNodeJoinRequest, opts ...grpc.CallOption) (*WaitForConnectMyComputerNodeJoinResponse, error)
+	// DeleteConnectMyComputerNode deletes the Connect My Computer node.
+	DeleteConnectMyComputerNode(ctx context.Context, in *DeleteConnectMyComputerNodeRequest, opts ...grpc.CallOption) (*DeleteConnectMyComputerNodeResponse, error)
+	// GetConnectMyComputerNodeName reads the Connect My Computer node name from a disk.
+	GetConnectMyComputerNodeName(ctx context.Context, in *GetConnectMyComputerNodeNameRequest, opts ...grpc.CallOption) (*GetConnectMyComputerNodeNameResponse, error)
 }
 
 type terminalServiceClient struct {
@@ -521,6 +527,24 @@ func (c *terminalServiceClient) WaitForConnectMyComputerNodeJoin(ctx context.Con
 	return out, nil
 }
 
+func (c *terminalServiceClient) DeleteConnectMyComputerNode(ctx context.Context, in *DeleteConnectMyComputerNodeRequest, opts ...grpc.CallOption) (*DeleteConnectMyComputerNodeResponse, error) {
+	out := new(DeleteConnectMyComputerNodeResponse)
+	err := c.cc.Invoke(ctx, TerminalService_DeleteConnectMyComputerNode_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *terminalServiceClient) GetConnectMyComputerNodeName(ctx context.Context, in *GetConnectMyComputerNodeNameRequest, opts ...grpc.CallOption) (*GetConnectMyComputerNodeNameResponse, error) {
+	out := new(GetConnectMyComputerNodeNameResponse)
+	err := c.cc.Invoke(ctx, TerminalService_GetConnectMyComputerNodeName_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TerminalServiceServer is the server API for TerminalService service.
 // All implementations must embed UnimplementedTerminalServiceServer
 // for forward compatibility
@@ -622,6 +646,10 @@ type TerminalServiceServer interface {
 	// that the Connect My Computer node for the particular cluster has joined the cluster (the
 	// OpPut event).
 	WaitForConnectMyComputerNodeJoin(context.Context, *WaitForConnectMyComputerNodeJoinRequest) (*WaitForConnectMyComputerNodeJoinResponse, error)
+	// DeleteConnectMyComputerNode deletes the Connect My Computer node.
+	DeleteConnectMyComputerNode(context.Context, *DeleteConnectMyComputerNodeRequest) (*DeleteConnectMyComputerNodeResponse, error)
+	// GetConnectMyComputerNodeName reads the Connect My Computer node name from a disk.
+	GetConnectMyComputerNodeName(context.Context, *GetConnectMyComputerNodeNameRequest) (*GetConnectMyComputerNodeNameResponse, error)
 	mustEmbedUnimplementedTerminalServiceServer()
 }
 
@@ -727,6 +755,12 @@ func (UnimplementedTerminalServiceServer) DeleteConnectMyComputerToken(context.C
 }
 func (UnimplementedTerminalServiceServer) WaitForConnectMyComputerNodeJoin(context.Context, *WaitForConnectMyComputerNodeJoinRequest) (*WaitForConnectMyComputerNodeJoinResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WaitForConnectMyComputerNodeJoin not implemented")
+}
+func (UnimplementedTerminalServiceServer) DeleteConnectMyComputerNode(context.Context, *DeleteConnectMyComputerNodeRequest) (*DeleteConnectMyComputerNodeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteConnectMyComputerNode not implemented")
+}
+func (UnimplementedTerminalServiceServer) GetConnectMyComputerNodeName(context.Context, *GetConnectMyComputerNodeNameRequest) (*GetConnectMyComputerNodeNameResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetConnectMyComputerNodeName not implemented")
 }
 func (UnimplementedTerminalServiceServer) mustEmbedUnimplementedTerminalServiceServer() {}
 
@@ -1346,6 +1380,42 @@ func _TerminalService_WaitForConnectMyComputerNodeJoin_Handler(srv interface{}, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TerminalService_DeleteConnectMyComputerNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteConnectMyComputerNodeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TerminalServiceServer).DeleteConnectMyComputerNode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TerminalService_DeleteConnectMyComputerNode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TerminalServiceServer).DeleteConnectMyComputerNode(ctx, req.(*DeleteConnectMyComputerNodeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TerminalService_GetConnectMyComputerNodeName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetConnectMyComputerNodeNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TerminalServiceServer).GetConnectMyComputerNodeName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TerminalService_GetConnectMyComputerNodeName_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TerminalServiceServer).GetConnectMyComputerNodeName(ctx, req.(*GetConnectMyComputerNodeNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TerminalService_ServiceDesc is the grpc.ServiceDesc for TerminalService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1476,6 +1546,14 @@ var TerminalService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "WaitForConnectMyComputerNodeJoin",
 			Handler:    _TerminalService_WaitForConnectMyComputerNodeJoin_Handler,
+		},
+		{
+			MethodName: "DeleteConnectMyComputerNode",
+			Handler:    _TerminalService_DeleteConnectMyComputerNode_Handler,
+		},
+		{
+			MethodName: "GetConnectMyComputerNodeName",
+			Handler:    _TerminalService_GetConnectMyComputerNodeName_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

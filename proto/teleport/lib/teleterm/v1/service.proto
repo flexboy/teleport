@@ -137,6 +137,10 @@ service TerminalService {
   // that the Connect My Computer node for the particular cluster has joined the cluster (the
   // OpPut event).
   rpc WaitForConnectMyComputerNodeJoin(WaitForConnectMyComputerNodeJoinRequest) returns (WaitForConnectMyComputerNodeJoinResponse);
+  // DeleteConnectMyComputerNode deletes the Connect My Computer node.
+  rpc DeleteConnectMyComputerNode(DeleteConnectMyComputerNodeRequest) returns (DeleteConnectMyComputerNodeResponse);
+  // GetConnectMyComputerNodeName reads the Connect My Computer node name from a disk.
+  rpc GetConnectMyComputerNodeName(GetConnectMyComputerNodeNameRequest) returns (GetConnectMyComputerNodeNameResponse);
 }
 
 message EmptyResponse {}
@@ -482,4 +486,18 @@ message WaitForConnectMyComputerNodeJoinRequest {
 }
 message WaitForConnectMyComputerNodeJoinResponse {
   Server server = 1;
+}
+
+message DeleteConnectMyComputerNodeRequest {
+  string root_cluster_uri = 1;
+}
+
+message DeleteConnectMyComputerNodeResponse {}
+
+message GetConnectMyComputerNodeNameRequest {
+  string root_cluster_uri = 1;
+}
+
+message GetConnectMyComputerNodeNameResponse {
+  string name = 1;
 }

@@ -33,6 +33,8 @@ import { MenuIcon } from 'shared/components/MenuAction';
 import { CircleCheck, Laptop, Moon, Warning } from 'design/Icon';
 import Indicator from 'design/Indicator';
 
+import { wait } from 'shared/utils/wait';
+
 import {
   AgentProcessError,
   CurrentAction,
@@ -72,6 +74,7 @@ export function DocumentConnectMyComputerStatus(
     downloadAndStartAgent,
     killAgent,
     isAgentConfiguredAttempt,
+    removeAgent,
   } = useConnectMyComputerContext();
   const { documentsService, rootClusterUri } = useWorkspaceContext();
   const { roleName, systemUsername, hostname } = useAgentProperties();
@@ -87,6 +90,17 @@ export function DocumentConnectMyComputerStatus(
     );
   }
 
+  async function removeAgentAndGoToSetup(): Promise<void> {
+    const [, error] = await removeAgent();
+    if (error) {
+      return;
+    }
+    // Wait before navigating away from the document, so the user has time
+    // to notice that the agent has been removed.
+    await wait(500);
+    replaceWithSetupDocument();
+  }
+
   const isRunning =
     currentAction.kind === 'observe-process' &&
     currentAction.agentProcessState.status === 'running';
@@ -99,10 +113,17 @@ export function DocumentConnectMyComputerStatus(
   const isStarting =
     currentAction.kind === 'start' &&
     currentAction.attempt.status === 'processing';
+  const isRemoving =
+    currentAction.kind === 'remove' &&
+    currentAction.attempt.status === 'processing';
+  const isRemoved =
+    currentAction.kind === 'remove' &&
+    currentAction.attempt.status === 'success';
 
   const showDisconnectButton = isRunning || isKilling;
   const disableDisconnectButton = isKilling;
-  const disableConnectButton = isDownloading || isStarting;
+  const disableConnectButton =
+    isDownloading || isStarting || isRemoving || isRemoved;
 
   return (
     <Document visible={props.visible}>
@@ -156,9 +177,7 @@ export function DocumentConnectMyComputerStatus(
               },
             }}
           >
-            <MenuItem onClick={() => alert('Not implemented')}>
-              Remove agent
-            </MenuItem>
+            <MenuItem onClick={removeAgentAndGoToSetup}>Remove agent</MenuItem>
           </MenuIcon>
         </Flex>
 
@@ -381,6 +400,34 @@ function prettifyCurrentAction(currentAction: CurrentAction): {
         }
         case 'success': {
           return noop; // noop, not used, at this point it should be observe-process exited.
+        }
+        default: {
+          return assertUnreachable(currentAction.attempt.status);
+        }
+      }
+    }
+    case 'remove': {
+      switch (currentAction.attempt.status) {
+        case '':
+        case 'processing': {
+          return {
+            Icon: StyledIndicator,
+            title: 'Removing',
+          };
+        }
+        case 'error': {
+          return {
+            Icon: StyledWarning,
+            title: 'Failed to remove agent',
+            error: currentAction.attempt.statusText,
+          };
+        }
+        case 'success': {
+          return {
+            Icon: CircleCheck,
+            title: 'Agent removed',
+            error: currentAction.attempt.statusText,
+          };
         }
         default: {
           return assertUnreachable(currentAction.attempt.status);

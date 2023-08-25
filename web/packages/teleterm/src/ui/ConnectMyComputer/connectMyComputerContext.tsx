@@ -23,14 +23,20 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Attempt, makeSuccessAttempt, useAsync } from 'shared/hooks/useAsync';
+import {
+  Attempt,
+  makeSuccessAttempt,
+  useAsync,
+  makeEmptyAttempt,
+} from 'shared/hooks/useAsync';
 
 import { RootClusterUri } from 'teleterm/ui/uri';
 import { useAppContext } from 'teleterm/ui/appContextProvider';
 import { Server, TshAbortSignal } from 'teleterm/services/tshd/types';
 import createAbortController from 'teleterm/services/tshd/createAbortController';
+import { isAccessDeniedError } from 'teleterm/services/tshd/errors';
 
-import { assertUnreachable } from '../utils';
+import { assertUnreachable, retryWithRelogin } from '../utils';
 
 import { canUseConnectMyComputer } from './permissions';
 
@@ -61,6 +67,10 @@ export type CurrentAction =
   | {
       kind: 'kill';
       attempt: Attempt<void>;
+    }
+  | {
+      kind: 'remove';
+      attempt: Attempt<void>;
     };
 
 export interface ConnectMyComputerContext {
@@ -74,6 +84,7 @@ export interface ConnectMyComputerContext {
   setDownloadAgentAttempt(attempt: Attempt<void>): void;
   downloadAndStartAgent(): Promise<void>;
   killAgent(): Promise<[void, Error]>;
+  removeAgent(): Promise<[void, Error]>;
   isAgentConfiguredAttempt: Attempt<boolean>;
   markAgentAsConfigured(): void;
   /**
@@ -90,13 +101,14 @@ const ConnectMyComputerContext = createContext<ConnectMyComputerContext>(null);
 export const ConnectMyComputerContextProvider: FC<{
   rootClusterUri: RootClusterUri;
 }> = ({ rootClusterUri, children }) => {
+  const ctx = useAppContext();
   const {
     mainProcessClient,
     connectMyComputerService,
     clustersService,
     configService,
     workspacesService,
-  } = useAppContext();
+  } = ctx;
   clustersService.useState();
 
   const [
@@ -123,6 +135,10 @@ export const ConnectMyComputerContextProvider: FC<{
 
   const markAgentAsConfigured = useCallback(() => {
     setAgentConfiguredAttempt(makeSuccessAttempt(true));
+  }, [setAgentConfiguredAttempt]);
+  const markAgentAsNotConfigured = useCallback(() => {
+    setDownloadAgentAttempt(makeEmptyAttempt());
+    setAgentConfiguredAttempt(makeSuccessAttempt(false));
   }, [setAgentConfiguredAttempt]);
 
   const [currentActionKind, setCurrentActionKind] =
@@ -207,6 +223,40 @@ export const ConnectMyComputerContextProvider: FC<{
     }, [connectMyComputerService, rootClusterUri, workspacesService])
   );
 
+  const [removeAgentAttempt, removeAgent] = useAsync(
+    useCallback(async () => {
+      const [, error] = await killAgent();
+      if (error) {
+        throw error;
+      }
+      setCurrentActionKind('remove');
+
+      try {
+        await retryWithRelogin(ctx, rootClusterUri, () =>
+          ctx.connectMyComputerService.removeConnectMyComputerNode(
+            rootClusterUri
+          )
+        );
+      } catch (e) {
+        if (isAccessDeniedError(e)) {
+          ctx.notificationsService.notifyInfo({
+            title: 'The node may be visible for a few more minutes.',
+            description:
+              'You do not have permissions to remove nodes, but it will be removed automatically.',
+          });
+        } else {
+          throw e;
+        }
+      }
+
+      await ctx.connectMyComputerService.removeConnections(rootClusterUri);
+      ctx.workspacesService.removeConnectMyComputerState(rootClusterUri);
+      await ctx.connectMyComputerService.removeAgentDirectory(rootClusterUri);
+
+      markAgentAsNotConfigured();
+    }, [ctx, killAgent, markAgentAsNotConfigured, rootClusterUri])
+  );
+
   useEffect(() => {
     const { cleanup } = mainProcessClient.subscribeToAgentUpdate(
       rootClusterUri,
@@ -238,6 +288,10 @@ export const ConnectMyComputerContextProvider: FC<{
     }
     case 'kill': {
       currentAction = { kind, attempt: killAgentAttempt };
+      break;
+    }
+    case 'remove': {
+      currentAction = { kind, attempt: removeAgentAttempt };
       break;
     }
     default: {
@@ -299,6 +353,7 @@ export const ConnectMyComputerContextProvider: FC<{
         markAgentAsConfigured,
         isAgentConfiguredAttempt,
         logsFromStartTimeout,
+        removeAgent,
       }}
       children={children}
     />

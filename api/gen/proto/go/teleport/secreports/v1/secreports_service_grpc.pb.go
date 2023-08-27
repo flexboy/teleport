@@ -46,6 +46,7 @@ const (
 	SecReportsService_GetSchema_FullMethodName                = "/teleport.secreports.v1.SecReportsService/GetSchema"
 	SecReportsService_RunSecurityReport_FullMethodName        = "/teleport.secreports.v1.SecReportsService/RunSecurityReport"
 	SecReportsService_GetSecurityReportDetails_FullMethodName = "/teleport.secreports.v1.SecReportsService/GetSecurityReportDetails"
+	SecReportsService_GetSecurityReportState_FullMethodName   = "/teleport.secreports.v1.SecReportsService/GetSecurityReportState"
 )
 
 // SecReportsServiceClient is the client API for SecReportsService service.
@@ -76,6 +77,8 @@ type SecReportsServiceClient interface {
 	RunSecurityReport(ctx context.Context, in *RunSecurityReportRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// GetSecurityReportsDetails is
 	GetSecurityReportDetails(ctx context.Context, in *GetSecurityReportDetailsRequest, opts ...grpc.CallOption) (*GetSecurityReportDetailsResponse, error)
+	// GetSecurityReportState
+	GetSecurityReportState(ctx context.Context, in *GetSecurityReportStateRequest, opts ...grpc.CallOption) (*SecurityReportState, error)
 }
 
 type secReportsServiceClient struct {
@@ -194,6 +197,15 @@ func (c *secReportsServiceClient) GetSecurityReportDetails(ctx context.Context, 
 	return out, nil
 }
 
+func (c *secReportsServiceClient) GetSecurityReportState(ctx context.Context, in *GetSecurityReportStateRequest, opts ...grpc.CallOption) (*SecurityReportState, error) {
+	out := new(SecurityReportState)
+	err := c.cc.Invoke(ctx, SecReportsService_GetSecurityReportState_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SecReportsServiceServer is the server API for SecReportsService service.
 // All implementations must embed UnimplementedSecReportsServiceServer
 // for forward compatibility
@@ -222,6 +234,8 @@ type SecReportsServiceServer interface {
 	RunSecurityReport(context.Context, *RunSecurityReportRequest) (*emptypb.Empty, error)
 	// GetSecurityReportsDetails is
 	GetSecurityReportDetails(context.Context, *GetSecurityReportDetailsRequest) (*GetSecurityReportDetailsResponse, error)
+	// GetSecurityReportState
+	GetSecurityReportState(context.Context, *GetSecurityReportStateRequest) (*SecurityReportState, error)
 	mustEmbedUnimplementedSecReportsServiceServer()
 }
 
@@ -264,6 +278,9 @@ func (UnimplementedSecReportsServiceServer) RunSecurityReport(context.Context, *
 }
 func (UnimplementedSecReportsServiceServer) GetSecurityReportDetails(context.Context, *GetSecurityReportDetailsRequest) (*GetSecurityReportDetailsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSecurityReportDetails not implemented")
+}
+func (UnimplementedSecReportsServiceServer) GetSecurityReportState(context.Context, *GetSecurityReportStateRequest) (*SecurityReportState, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSecurityReportState not implemented")
 }
 func (UnimplementedSecReportsServiceServer) mustEmbedUnimplementedSecReportsServiceServer() {}
 
@@ -494,6 +511,24 @@ func _SecReportsService_GetSecurityReportDetails_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SecReportsService_GetSecurityReportState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSecurityReportStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SecReportsServiceServer).GetSecurityReportState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SecReportsService_GetSecurityReportState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SecReportsServiceServer).GetSecurityReportState(ctx, req.(*GetSecurityReportStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SecReportsService_ServiceDesc is the grpc.ServiceDesc for SecReportsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -548,6 +583,10 @@ var SecReportsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSecurityReportDetails",
 			Handler:    _SecReportsService_GetSecurityReportDetails_Handler,
+		},
+		{
+			MethodName: "GetSecurityReportState",
+			Handler:    _SecReportsService_GetSecurityReportState_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

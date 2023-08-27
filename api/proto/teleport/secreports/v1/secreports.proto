@@ -49,10 +49,27 @@ message SecurityReport {
 
 // TODO
 message SecurityReportSpec {
+  // header is the header for the resource.
   // TODO
-  string name = 1;
+  string name = 2;
   // TODO
-  string desc = 2;
+  string desc = 3;
   // TODO
-  repeated string queries = 3;
+  repeated string queries = 4;
+}
+
+// todo:
+message SecurityReportState {
+  // header is the header for the resource.
+  teleport.header.v1.ResourceHeader header = 1;
+  // spec is
+  SecurityReportStateSpec spec = 2;
+}
+
+// FOoo
+message SecurityReportStateSpec {
+  // state is
+  string state = 1;
+  // updated_at is
+  string updated_at = 2;
 }

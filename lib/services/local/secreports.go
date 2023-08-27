@@ -23,7 +23,6 @@ import (
 	"github.com/jonboulle/clockwork"
 	"github.com/sirupsen/logrus"
 
-	secreportsv1 "github.com/gravitational/teleport/api/gen/proto/go/teleport/secreports/v1"
 	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/teleport/api/types/secreports"
 	"github.com/gravitational/teleport/lib/backend"
@@ -34,16 +33,16 @@ import (
 const (
 	AuditQueryPrefix     = "audit_query"
 	SecurityReportPrefix = "security_report"
+	SecurityReportResult = "security_report_result"
 )
 
 // SecReportsService ...
 type SecReportsService struct {
-	log               logrus.FieldLogger
-	clock             clockwork.Clock
-	auditQuerySvc     *generic.Service[*secreports.AuditQuery]
-	securityReportSvc *generic.Service[*secreports.SecurityReport]
-
-	secreportsv1.UnimplementedSecReportsServiceServer
+	log                    logrus.FieldLogger
+	clock                  clockwork.Clock
+	auditQuerySvc          *generic.Service[*secreports.AuditQuery]
+	securityReportSvc      *generic.Service[*secreports.SecurityReport]
+	securityReportStateSvc *generic.Service[*secreports.SecurityReportState]
 }
 
 // NewSecReportsService ...
@@ -68,12 +67,23 @@ func NewSecReportsService(backend backend.Backend, clock clockwork.Clock) (*SecR
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
+	securityReportStateSvc, err := generic.NewService(&generic.ServiceConfig[*secreports.SecurityReportState]{
+		Backend:       backend,
+		ResourceKind:  types.KindSecurityReportState,
+		BackendPrefix: types.KindSecurityReportState,
+		MarshalFunc:   services.MarshalSecurityReportState,
+		UnmarshalFunc: services.UnmarshalSecurityReportState,
+	})
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
 
 	return &SecReportsService{
-		log:               logrus.WithFields(logrus.Fields{trace.Component: "secreports:local-service"}),
-		clock:             clock,
-		auditQuerySvc:     auditQuerySvc,
-		securityReportSvc: securityReportSvc,
+		log:                    logrus.WithFields(logrus.Fields{trace.Component: "secreports:local-service"}),
+		clock:                  clock,
+		auditQuerySvc:          auditQuerySvc,
+		securityReportSvc:      securityReportSvc,
+		securityReportStateSvc: securityReportStateSvc,
 	}, nil
 }
 
@@ -137,6 +147,36 @@ func (s *SecReportsService) GetSecurityReport(ctx context.Context, name string) 
 
 func (s *SecReportsService) ListSecurityReport(ctx context.Context, i int, token string) ([]*secreports.SecurityReport, string, error) {
 	items, nextToken, err := s.securityReportSvc.ListResources(ctx, i, token)
+	if err != nil {
+		return nil, "", trace.Wrap(err)
+	}
+	return items, nextToken, err
+}
+
+func (s *SecReportsService) UpsertSecurityReportsState(ctx context.Context, item *secreports.SecurityReportState) error {
+	if err := s.securityReportStateSvc.UpsertResource(ctx, item); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+func (s *SecReportsService) CompareAndAndSecurityReportsState(ctx context.Context, item *secreports.SecurityReportState) error {
+	s.securityReportStateSvc.UpdateAndSwapResource(ctx, item.GetName(), func(old *secreports.SecurityReportState) error {
+		old = item
+		return nil
+	})
+	return nil
+}
+
+func (s *SecReportsService) GetSecurityReportState(ctx context.Context, name string) (*secreports.SecurityReportState, error) {
+	r, err := s.securityReportStateSvc.GetResource(ctx, name)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return r, nil
+}
+
+func (s *SecReportsService) ListSecurityReportState(ctx context.Context, i int, token string) ([]*secreports.SecurityReportState, string, error) {
+	items, nextToken, err := s.securityReportStateSvc.ListResources(ctx, i, token)
 	if err != nil {
 		return nil, "", trace.Wrap(err)
 	}

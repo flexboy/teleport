@@ -153,3 +153,19 @@ func (c *Client) RunSecurityReport(ctx context.Context, name string, days int) e
 	}
 	return nil
 }
+
+func (c *Client) GetSecurityReportState(ctx context.Context, name string, days int) (*secreports.SecurityReportState, error) {
+	resp, err := c.grpcClient.GetSecurityReportState(ctx, &pb.GetSecurityReportStateRequest{
+		Name: name,
+		Days: uint32(days),
+	})
+	if err != nil {
+		return nil, trail.FromGRPC(err)
+	}
+	out, err := v1.ResultFromProto(resp)
+	if err != nil {
+		return nil, trace.Wrap(err)
+
+	}
+	return out, nil
+}

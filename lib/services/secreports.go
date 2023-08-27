@@ -36,6 +36,9 @@ type SecReports interface {
 	UpsertSecurityReports(ctx context.Context, item *secreports.SecurityReport) error
 	GetSecurityReport(ctx context.Context, name string) (*secreports.SecurityReport, error)
 	ListSecurityReport(ctx context.Context, i int, token string) ([]*secreports.SecurityReport, string, error)
+
+	UpsertSecurityReportsState(ctx context.Context, item *secreports.SecurityReportState) error
+	GetSecurityReportState(ctx context.Context, name string) (*secreports.SecurityReportState, error)
 }
 
 func MarshalAuditQuery(in *secreports.AuditQuery, opts ...MarshalOption) ([]byte, error) {
@@ -107,6 +110,46 @@ func UnmarshalSecurityReport(data []byte, opts ...MarshalOption) (*secreports.Se
 		return nil, trace.Wrap(err)
 	}
 	var out *secreports.SecurityReport
+	if err := utils.FastUnmarshal(data, &out); err != nil {
+		return nil, trace.BadParameter(err.Error())
+	}
+	if err := out.CheckAndSetDefaults(); err != nil {
+		return nil, trace.Wrap(err)
+	}
+	if cfg.ID != 0 {
+		out.SetResourceID(cfg.ID)
+	}
+	if !cfg.Expires.IsZero() {
+		out.SetExpiry(cfg.Expires)
+	}
+	return out, nil
+}
+
+func MarshalSecurityReportState(in *secreports.SecurityReportState, opts ...MarshalOption) ([]byte, error) {
+	if err := in.CheckAndSetDefaults(); err != nil {
+		return nil, trace.Wrap(err)
+	}
+	cfg, err := CollectOptions(opts)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	if !cfg.PreserveResourceID {
+		copy := *in
+		copy.SetResourceID(0)
+		in = &copy
+	}
+	return utils.FastMarshal(in)
+}
+
+func UnmarshalSecurityReportState(data []byte, opts ...MarshalOption) (*secreports.SecurityReportState, error) {
+	if len(data) == 0 {
+		return nil, trace.BadParameter("missing data")
+	}
+	cfg, err := CollectOptions(opts)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	var out *secreports.SecurityReportState
 	if err := utils.FastUnmarshal(data, &out); err != nil {
 		return nil, trace.BadParameter(err.Error())
 	}

@@ -17,8 +17,6 @@ limitations under the License.
 package secreports
 
 import (
-	"time"
-
 	"github.com/gravitational/trace"
 
 	"github.com/gravitational/teleport/api/types"
@@ -41,10 +39,6 @@ type SecurityReportSpec struct {
 	Desc string `json:"desc,omitempty" yaml:"desc,omitempty"`
 	//Result is ...
 	Queries []string `json:"queries,omitempty" yaml:"queries,omitempty"`
-
-	// Result s3 bucket.
-	ResultObj     string `json:"result_obj,omitempty" yaml:"result_obj,omitempty"`
-	UpdateTimeMap map[int]string
 }
 
 // AuditQuery is ...
@@ -67,7 +61,7 @@ type AuditQuerySpec struct {
 
 // CheckAndSetDefaults validates fields and populates empty fields with default values.
 func (a *AuditQuery) CheckAndSetDefaults() error {
-	a.SetKind(types.KindAccessList)
+	a.SetKind(types.KindAuditQuery)
 	a.SetVersion(types.V1)
 
 	if err := a.ResourceHeader.CheckAndSetDefaults(); err != nil {
@@ -100,7 +94,7 @@ func NewSecurityReport(metadata header.Metadata, spec SecurityReportSpec) (*Secu
 
 // CheckAndSetDefaults validates fields and populates empty fields with default values.
 func (a *SecurityReport) CheckAndSetDefaults() error {
-	a.SetKind(types.KindAccessList)
+	a.SetKind(types.KindSecurityReport)
 	a.SetVersion(types.V1)
 
 	if err := a.ResourceHeader.CheckAndSetDefaults(); err != nil {
@@ -109,12 +103,12 @@ func (a *SecurityReport) CheckAndSetDefaults() error {
 	return nil
 }
 
-func (a *SecurityReport) SetUpdateTime(days int, updatedAt time.Time) {
-	if a.Spec.UpdateTimeMap == nil {
-		a.Spec.UpdateTimeMap = make(map[int]string)
-	}
-	a.Spec.UpdateTimeMap[days] = updatedAt.UTC().Format(time.RFC3339)
-}
+//func (a *SecurityReport) SetUpdateTime(days int, updatedAt time.Time) {
+//	if a.Spec.UpdateTimeMap == nil {
+//		a.Spec.UpdateTimeMap = make(map[int]string)
+//	}
+//	a.Spec.UpdateTimeMap[days] = updatedAt.UTC().Format(time.RFC3339)
+//}
 
 // GetMetadata returns metadata. This is specifically for conforming to the Resource interface,
 // and should be removed when possible.
@@ -126,4 +120,52 @@ func (a *SecurityReport) GetMetadata() types.Metadata {
 // and should be removed when possible.
 func (a *AuditQuery) GetMetadata() types.Metadata {
 	return legacy.FromHeaderMetadata(a.Metadata)
+}
+
+type SecurityReportStatus string
+
+const (
+	Unknown SecurityReportStatus = "UNKNOWN"
+	Running SecurityReportStatus = "RUNNING"
+	Failed  SecurityReportStatus = "FAILED"
+	Ready   SecurityReportStatus = "READY"
+)
+
+type SecurityReportState struct {
+	// ResourceHeader is
+	header.ResourceHeader
+	Spec SecurityReportStateSpec `json:"spec,omitempty" yaml:"spec,omitempty"`
+}
+
+type SecurityReportStateSpec struct {
+	Status    SecurityReportStatus `json:"status,omitempty" yaml:"status,omitempty"`
+	UpdatedAt string               `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
+}
+
+// GetMetadata returns metadata. This is specifically for conforming to the Resource interface,
+// and should be removed when possible.
+func (a *SecurityReportState) GetMetadata() types.Metadata {
+	return legacy.FromHeaderMetadata(a.Metadata)
+}
+
+// CheckAndSetDefaults validates fields and populates empty fields with default values.
+func (a *SecurityReportState) CheckAndSetDefaults() error {
+	a.SetKind(types.KindSecurityReportState)
+	a.SetVersion(types.V1)
+
+	if err := a.ResourceHeader.CheckAndSetDefaults(); err != nil {
+		return trace.Wrap(err)
+	}
+	return nil
+}
+
+func NewSecurityReportState(metadata header.Metadata, spec SecurityReportStateSpec) (*SecurityReportState, error) {
+	secReport := &SecurityReportState{
+		ResourceHeader: header.ResourceHeaderFromMetadata(metadata),
+		Spec:           spec,
+	}
+	if err := secReport.CheckAndSetDefaults(); err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return secReport, nil
 }

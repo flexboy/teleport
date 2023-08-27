@@ -69,3 +69,25 @@ func ReportToProto(in *secreports.SecurityReport) *secreportsv1.SecurityReport {
 		},
 	}
 }
+
+func ResultFromProto(in *secreportsv1.SecurityReportState) (*secreports.SecurityReportState, error) {
+	spec := secreports.SecurityReportStateSpec{
+		Status:    secreports.SecurityReportStatus(in.Spec.State),
+		UpdatedAt: in.Spec.UpdatedAt,
+	}
+	out, err := secreports.NewSecurityReportState(headerv1.FromMetadataProto(in.Header.Metadata), spec)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+	return out, nil
+}
+
+func ResultToProto(in *secreports.SecurityReportState) *secreportsv1.SecurityReportState {
+	return &secreportsv1.SecurityReportState{
+		Header: headerv1.ToResourceHeaderProto(in.ResourceHeader),
+		Spec: &secreportsv1.SecurityReportStateSpec{
+			State:     string(in.Spec.Status),
+			UpdatedAt: in.Spec.UpdatedAt,
+		},
+	}
+}

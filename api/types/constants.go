@@ -460,8 +460,9 @@ const (
 	// KindAccessListMember is an AccessListMember resource
 	KindAccessListMember = "access_list_member"
 	// KindAuditQuery ...
-	KindAuditQuery     = "audit_query"
-	KindSecurityReport = "security_report"
+	KindAuditQuery          = "audit_query"
+	KindSecurityReport      = "security_report"
+	KindSecurityReportState = "security_report_state"
 
 	// V7 is the seventh version of resources.
 	V7 = "v7"

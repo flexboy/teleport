@@ -51,6 +51,7 @@ import (
 // teleportTestUser is additional user used for tests
 const teleportTestUser = "teleport-test"
 
+// teleportFakeUser is a user that doesn't exist, used for tests.
 const teleportFakeUser = "teleport-fake"
 
 // wildcardAllow is used in tests to allow access to all labels.

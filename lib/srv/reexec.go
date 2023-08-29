@@ -262,7 +262,6 @@ func RunCommand() (errw io.Writer, code int, err error) {
 	defer func() {
 		if err != nil {
 			if errors.Is(err, user.UnknownUserError(c.Login)) {
-				uacc.OpenError(c.UaccMetadata.BtmpPath, c.Login, c.UaccMetadata.Hostname, c.UaccMetadata.RemoteAddr)
 				if err := auditd.SendEvent(auditd.AuditUserErr, auditd.Failed, auditdMsg); err != nil {
 					log.WithError(err).Debugf("failed to send UserErr event to auditd: %v", err)
 				}
@@ -351,6 +350,7 @@ func RunCommand() (errw io.Writer, code int, err error) {
 
 	localUser, err := user.Lookup(c.Login)
 	if err != nil {
+		_ = uacc.OpenError(c.UaccMetadata.BtmpPath, c.Login, c.UaccMetadata.Hostname, c.UaccMetadata.RemoteAddr)
 		return errorWriter, teleport.RemoteCommandFailure, trace.Wrap(err)
 	}
 

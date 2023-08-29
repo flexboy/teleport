@@ -202,7 +202,9 @@ func getDefaultPaths(utmpPath, wtmpPath string) (string, string) {
 	return utmpPath, wtmpPath
 }
 
-func getDefaultBTMPPath(btmpPath string) string {
+// getDefaultBtmpPaths sets the default paths for the btmp file if passed empty.
+// This function always returns a path, even if it doesn't exist in the system.
+func getDefaultBtmpPath(btmpPath string) string {
 	if btmpPath == "" {
 		return btmpFilePath
 	}
@@ -242,6 +244,13 @@ func UserWithPtyInDatabase(utmpPath string, username string) error {
 	}
 }
 
+// OpenError writes a new entry to the btmp failed login log.
+// This should be called when an interactive session fails due to a missing
+// local user.
+//
+// `username`: Name of the user the interactive session is running under.
+// `hostname`: Name of the system the user is logged into.
+// `remote`: IPv6 address of the remote host.
 func OpenError(btmpPath, username, hostname string, remote [4]int32) error {
 	// String parameter validation.
 	if len(username) > userMaxLen {
@@ -251,7 +260,7 @@ func OpenError(btmpPath, username, hostname string, remote [4]int32) error {
 		return trace.BadParameter("hostname length exceeds OS limits")
 	}
 
-	btmpPath = getDefaultBTMPPath(btmpPath)
+	btmpPath = getDefaultBtmpPath(btmpPath)
 	// Convert Go strings into C strings that we can pass over ffi.
 	cBtmpPath := C.CString(btmpPath)
 	defer C.free(unsafe.Pointer(cBtmpPath))
@@ -276,9 +285,9 @@ func OpenError(btmpPath, username, hostname string, remote [4]int32) error {
 	status, errno := C.uacc_add_btmp_entry(cBtmpPath, cUsername, cHostname, &cIP[0], secondsElapsed, microsFraction)
 	switch status {
 	case C.UACC_UTMP_MISSING_PERMISSIONS:
-		return trace.AccessDenied("missing permissions to write to utmp/wtmp")
+		return trace.AccessDenied("missing permissions to write to btmp")
 	case C.UACC_UTMP_WRITE_ERROR:
-		return trace.AccessDenied("failed to add entry to utmp database")
+		return trace.AccessDenied("failed to add entry to btmp")
 	case C.UACC_UTMP_FAILED_OPEN:
 		return trace.AccessDenied("failed to open user account database, code: %d", errno)
 	case C.UACC_UTMP_FAILED_TO_SELECT_FILE:

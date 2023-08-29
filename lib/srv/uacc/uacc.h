@@ -235,12 +235,14 @@ static int uacc_has_entry_with_user(const char *utmp_path, const char *user) {
     return errno == 0 ? UACC_UTMP_ENTRY_DOES_NOT_EXIST : errno;
 }
 
+// Low level C function to add a new entry to the failed login log.
+// This function does not perform any argument validation.
 static int uacc_add_btmp_entry(const char *btmp_path, const char *username,
   const char *hostname, const int32_t remote_addr_v6[4],
   int32_t tv_sec, int32_t tv_usec) {
 
     if (btmp_path == NULL) {
-      // Return open failed error if any of the provided paths is NULL.
+      // Return open failed error if the provided path is NULL.
       return UACC_UTMP_FAILED_OPEN;
     }
 

@@ -184,6 +184,7 @@ type Server struct {
 	// wtmpPath is the path to the user accounting s.Logger.
 	wtmpPath string
 
+	// btmpPath is the path to the user accounting failed login log.
 	btmpPath string
 
 	// allowTCPForwarding indicates whether the ssh server is allowed to offer
@@ -267,7 +268,7 @@ func (s *Server) GetAccessPoint() srv.AccessPoint {
 	return s.authService
 }
 
-// GetUtmpPath returns the optional override of the utmp and wtmp path.
+// GetUtmpPath returns the optional override of the utmp, wtmp, and btmp paths.
 func (s *Server) GetUtmpPath() (string, string, string) {
 	return s.utmpPath, s.wtmpPath, s.btmpPath
 }

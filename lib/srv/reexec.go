@@ -193,6 +193,9 @@ type UaccMetadata struct {
 
 	// WtmpPath is the path of the system wtmp log.
 	WtmpPath string `json:"wtmp_path,omitempty"`
+
+	// BtmpPath is the path of the system btmp log.
+	BtmpPath string `json:"btmp_path,omitempty"`
 }
 
 // RunCommand reads in the command to run from the parent process (over a
@@ -259,6 +262,7 @@ func RunCommand() (errw io.Writer, code int, err error) {
 	defer func() {
 		if err != nil {
 			if errors.Is(err, user.UnknownUserError(c.Login)) {
+				uacc.OpenError(c.UaccMetadata.BtmpPath, c.Login, c.UaccMetadata.Hostname, c.UaccMetadata.RemoteAddr)
 				if err := auditd.SendEvent(auditd.AuditUserErr, auditd.Failed, auditdMsg); err != nil {
 					log.WithError(err).Debugf("failed to send UserErr event to auditd: %v", err)
 				}

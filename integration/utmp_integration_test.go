@@ -18,7 +18,6 @@ package integration
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -52,7 +51,7 @@ import (
 // teleportTestUser is additional user used for tests
 const teleportTestUser = "teleport-test"
 
-const fakeTeleportUser = "teleport-fake"
+const teleportFakeUser = "teleport-fake"
 
 // wildcardAllow is used in tests to allow access to all labels.
 var wildcardAllow = types.Labels{
@@ -79,7 +78,7 @@ func TestRootUTMPEntryExists(t *testing.T) {
 
 	ctx := context.Background()
 	s := newSrvCtx(ctx, t)
-	up, err := newUpack(ctx, s, teleportTestUser, []string{teleportTestUser, fakeTeleportUser}, wildcardAllow)
+	up, err := newUpack(ctx, s, teleportTestUser, []string{teleportTestUser, teleportFakeUser}, wildcardAllow)
 	require.NoError(t, err)
 
 	t.Run("successful login is logged in utmp and wtmp", func(t *testing.T) {
@@ -118,7 +117,6 @@ func TestRootUTMPEntryExists(t *testing.T) {
 			if utmpEntryExists == nil && wtmpEntryExists == nil {
 				return
 			}
-			fmt.Printf("utmp err: %v\nwtmp err: %v\n", utmpEntryExists, wtmpEntryExists)
 			if !trace.IsNotFound(utmpEntryExists) {
 				require.NoError(t, err)
 			}
@@ -130,7 +128,48 @@ func TestRootUTMPEntryExists(t *testing.T) {
 		t.Errorf("did not detect utmp entry within 5 minutes")
 	})
 
-	// t.Run("unsuccessful login is logged in btmp", func(t *testing.T) {})
+	t.Run("unsuccessful login is logged in btmp", func(t *testing.T) {
+		sshConfig := &ssh.ClientConfig{
+			User:            teleportFakeUser,
+			Auth:            []ssh.AuthMethod{ssh.PublicKeys(up.certSigner)},
+			HostKeyCallback: ssh.FixedHostKey(s.signer.PublicKey()),
+		}
+
+		client, err := ssh.Dial("tcp", s.srv.Addr(), sshConfig)
+		require.NoError(t, err)
+		defer func() {
+			err := client.Close()
+			require.NoError(t, err)
+		}()
+
+		se, err := client.NewSession()
+		require.NoError(t, err)
+		defer se.Close()
+
+		modes := ssh.TerminalModes{
+			ssh.ECHO:          0,     // disable echoing
+			ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
+			ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
+		}
+
+		require.NoError(t, se.RequestPty("xterm", 80, 80, modes), nil)
+		err = se.Shell()
+		require.NoError(t, err)
+
+		start := time.Now()
+		for time.Since(start) < 5*time.Minute {
+			time.Sleep(time.Second)
+			btmpEntryExists := uacc.UserWithPtyInDatabase(s.btmpPath, teleportFakeUser)
+			if btmpEntryExists == nil {
+				return
+			}
+			if !trace.IsNotFound(btmpEntryExists) {
+				require.NoError(t, err)
+			}
+		}
+
+		t.Errorf("did not detect btmp entry within 5 minutes")
+	})
 
 }
 

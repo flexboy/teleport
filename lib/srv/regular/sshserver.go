@@ -268,8 +268,8 @@ func (s *Server) GetAccessPoint() srv.AccessPoint {
 }
 
 // GetUtmpPath returns the optional override of the utmp and wtmp path.
-func (s *Server) GetUtmpPath() (string, string) {
-	return s.utmpPath, s.wtmpPath
+func (s *Server) GetUtmpPath() (string, string, string) {
+	return s.utmpPath, s.wtmpPath, s.btmpPath
 }
 
 // GetPAM returns the PAM configuration for this server.

@@ -48,11 +48,11 @@ func (req *ListSecurityGroupsRequest) CheckAndSetDefaults() error {
 type SecurityGroup struct {
 	// Name is the Security Group name.
 	// This is just a friendly name and should not be used for further API calls
-	Name string
+	Name string `json:"name"`
 
 	// SecurityGroupID is the security group ID.
 	// This is the value that should be used when doing further API calls.
-	SecurityGroupID string
+	SecurityGroupID string `json:"securityGroupId"`
 }
 
 // ListSecurityGroupsResponse contains a page of SecurityGroups.

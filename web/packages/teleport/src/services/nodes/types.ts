@@ -25,9 +25,19 @@ export interface Node {
   tunnel: boolean;
   subKind?: string;
   sshLogins: string[];
+  awsMetadata?: AwsMetadata;
 }
 
 export interface BashCommand {
   text: string;
   expires: string;
 }
+
+export type AwsMetadata = {
+  accountId: string;
+  instanceId: string;
+  region: string;
+  vpcId: string;
+  integration: string;
+  subnetId: string;
+};

@@ -39,6 +39,12 @@ export interface App {
   samlApp: boolean;
   // samlAppSsoUrl is the URL that triggers IdP-initiated SSO for SAML Application;
   samlAppSsoUrl?: string;
+  // isGrafana is true if the name includes grafana or has the label "icon:grafana"
+  isGrafana?: boolean;
+  // isJenkins is true if the name includes jenkins or has the label "icon:jenkins"
+  isJenkins?: boolean;
+  // isSlack is true if the name includes slack or has the label "icon:slack"
+  isSlack?: boolean;
 }
 
 export type AwsRole = {

@@ -34,7 +34,6 @@ import {
   UnifiedResourceKind,
 } from 'teleport/services/agents';
 import { Database } from 'teleport/services/databases';
-import { App } from 'teleport/services/apps';
 
 import { ResourceActionButton } from './ResourceActionButton';
 

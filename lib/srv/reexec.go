@@ -278,6 +278,13 @@ func RunCommand() (errw io.Writer, code int, err error) {
 	var pty *os.File
 	uaccEnabled := false
 
+	localUser, err := user.Lookup(c.Login)
+	if err != nil {
+		// Ignore error since there's no way to log it.
+		_ = uacc.LogFailedLogin(c.UaccMetadata.BtmpPath, c.Login, c.UaccMetadata.Hostname, c.UaccMetadata.RemoteAddr)
+		return errorWriter, teleport.RemoteCommandFailure, trace.Wrap(err)
+	}
+
 	// If a terminal was requested, file descriptors 6 and 7 always point to the
 	// PTY and TTY. Extract them and set the controlling TTY. Otherwise, connect
 	// std{in,out,err} directly.
@@ -347,12 +354,6 @@ func RunCommand() (errw io.Writer, code int, err error) {
 		return errorWriter, teleport.RemoteCommandFailure, trace.Wrap(err)
 	}
 	readyfd = nil
-
-	localUser, err := user.Lookup(c.Login)
-	if err != nil {
-		_ = uacc.OpenError(c.UaccMetadata.BtmpPath, c.Login, c.UaccMetadata.Hostname, c.UaccMetadata.RemoteAddr)
-		return errorWriter, teleport.RemoteCommandFailure, trace.Wrap(err)
-	}
 
 	// Build the actual command that will launch the shell.
 	cmd, err := buildCommand(&c, localUser, tty, pty, pamEnvironment)

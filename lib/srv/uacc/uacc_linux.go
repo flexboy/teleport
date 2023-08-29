@@ -244,14 +244,14 @@ func UserWithPtyInDatabase(utmpPath string, username string) error {
 	}
 }
 
-// OpenError writes a new entry to the btmp failed login log.
+// LogFailedLogin writes a new entry to the btmp failed login log.
 // This should be called when an interactive session fails due to a missing
 // local user.
 //
 // `username`: Name of the user the interactive session is running under.
 // `hostname`: Name of the system the user is logged into.
 // `remote`: IPv6 address of the remote host.
-func OpenError(btmpPath, username, hostname string, remote [4]int32) error {
+func LogFailedLogin(btmpPath, username, hostname string, remote [4]int32) error {
 	// String parameter validation.
 	if len(username) > userMaxLen {
 		return trace.BadParameter("username length exceeds OS limits")

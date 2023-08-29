@@ -19,6 +19,7 @@ package integration
 import (
 	"context"
 	"os"
+	"os/user"
 	"path"
 	"testing"
 	"time"
@@ -48,9 +49,6 @@ import (
 	"github.com/gravitational/teleport/lib/utils"
 )
 
-// teleportTestUser is additional user used for tests
-const teleportTestUser = "teleport-test"
-
 // teleportFakeUser is a user that doesn't exist, used for tests.
 const teleportFakeUser = "teleport-fake"
 
@@ -76,6 +74,10 @@ func TestRootUTMPEntryExists(t *testing.T) {
 	if !isRoot() {
 		t.Skip("This test will be skipped because tests are not being run as root.")
 	}
+
+	user, err := user.Current()
+	require.NoError(t, err)
+	teleportTestUser := user.Name
 
 	ctx := context.Background()
 	s := newSrvCtx(ctx, t)
@@ -116,6 +118,8 @@ func TestRootUTMPEntryExists(t *testing.T) {
 			utmpEntryExists := uacc.UserWithPtyInDatabase(s.utmpPath, teleportTestUser)
 			wtmpEntryExists := uacc.UserWithPtyInDatabase(s.wtmpPath, teleportTestUser)
 			if utmpEntryExists == nil && wtmpEntryExists == nil {
+				// Ensure than an entry was not written to btmp.
+				require.True(t, trace.IsNotFound(uacc.UserWithPtyInDatabase(s.btmpPath, teleportTestUser)), "unexpected error: %v", err)
 				return
 			}
 			if !trace.IsNotFound(utmpEntryExists) {
@@ -162,6 +166,9 @@ func TestRootUTMPEntryExists(t *testing.T) {
 			time.Sleep(time.Second)
 			btmpEntryExists := uacc.UserWithPtyInDatabase(s.btmpPath, teleportFakeUser)
 			if btmpEntryExists == nil {
+				// Ensure that entries were not written to utmp and wtmp
+				require.True(t, trace.IsNotFound(uacc.UserWithPtyInDatabase(s.utmpPath, teleportFakeUser)), "unexpected error: %v", err)
+				require.True(t, trace.IsNotFound(uacc.UserWithPtyInDatabase(s.wtmpPath, teleportFakeUser)), "unexpected error: %v", err)
 				return
 			}
 			if !trace.IsNotFound(btmpEntryExists) {

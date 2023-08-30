@@ -281,7 +281,9 @@ EOF
     fi
 
     # configure proxy_listener_mode
-    if [[ -n "${PROXY_MULTIPLEXING}" ]]; then
+    if [[ "${USE_TLS_ROUTING}" == "true" ]]; then
+        echo "  proxy_listener_mode: multiplex" >> ${USE_CONFIG_PATH}
+    elif [[ -n "${PROXY_MULTIPLEXING}" ]]; then
         echo "  proxy_listener_mode: ${PROXY_MULTIPLEXING}" >> ${USE_CONFIG_PATH}
     fi
 
@@ -340,25 +342,32 @@ ssh_service:
 
 proxy_service:
   enabled: yes
-  listen_addr: 0.0.0.0:3023
-  tunnel_listen_addr: 0.0.0.0:${TUNNEL_LISTEN_PORT}
   web_listen_addr: 0.0.0.0:3080
   public_addr: ${TELEPORT_DOMAIN_NAME}:443
 EOF
 
-    # write ssh/tunnel config
-    write_ssh_and_tunnel_section 443
+    # don't configure separate listen addresses when TLS routing is enabled
+    if [[ "${USE_TLS_ROUTING}" == "true" ]]; then
+        return
+    else
+cat >>${USE_CONFIG_PATH} <<EOF
+  listen_addr: 0.0.0.0:3023
+  tunnel_listen_addr: 0.0.0.0:${TUNNEL_LISTEN_PORT}
+EOF
+        # write ssh/tunnel config
+        write_ssh_and_tunnel_section 443
 
-    # if we are using letsencrypt (i.e. not ACM) then append config lines
-    if [[ "${USE_ACM}" != "true" ]]; then
-        write_https_keypairs_section
+        # if we are using letsencrypt (i.e. not ACM) then append config lines
+        if [[ "${USE_ACM}" != "true" ]]; then
+            write_https_keypairs_section
+        fi
+
+        # set up the database listeners
+        write_database_section TELEPORT_DOMAIN_NAME
+
+        # set up the kubernetes listener
+        write_kubernetes_section TELEPORT_DOMAIN_NAME
     fi
-
-    # set up the database listeners
-    write_database_section TELEPORT_DOMAIN_NAME
-
-    # set up the kubernetes listener
-    write_kubernetes_section TELEPORT_DOMAIN_NAME
 
     # enable/start cert services and timers
     systemctl_wrap enable teleport-check-cert.service teleport-check-cert.timer
@@ -485,7 +494,9 @@ EOF
     fi
 
     # configure proxy_listener_mode
-    if [[ -n "${PROXY_MULTIPLEXING}" ]]; then
+    if [[ "${USE_TLS_ROUTING}" == "true" ]]; then
+        echo "  proxy_listener_mode: multiplex" >> ${USE_CONFIG_PATH}
+    elif [[ -n "${PROXY_MULTIPLEXING}" ]]; then
         echo "  proxy_listener_mode: ${PROXY_MULTIPLEXING}" >> ${USE_CONFIG_PATH}
     fi
 
@@ -497,14 +508,21 @@ ssh_service:
 
 proxy_service:
   enabled: yes
-  listen_addr: 0.0.0.0:3023
-  tunnel_listen_addr: 0.0.0.0:${TUNNEL_LISTEN_PORT}
   web_listen_addr: 0.0.0.0:3080
   public_addr: ${TELEPORT_EXTERNAL_HOSTNAME:-$PUBLIC_IP}:${TELEPORT_EXTERNAL_PORT:-3080}
 EOF
 
-    # write ssh/tunnel config
-    write_ssh_and_tunnel_section 3080
+    # don't write SSH and tunnel section if TLS routing is enabled
+    if [[ "${USE_TLS_ROUTING}" == "true" ]]; then
+        return
+    else
+cat >>${USE_CONFIG_PATH} <<EOF
+  listen_addr: 0.0.0.0:3023
+  tunnel_listen_addr: 0.0.0.0:${TUNNEL_LISTEN_PORT}
+EOF
+        # write ssh/tunnel config
+        write_ssh_and_tunnel_section 3080
+    fi
 
     # if we are using letsencrypt, append config lines
     if [[ "${USE_LETSENCRYPT}" == "true" ]]; then
@@ -514,11 +532,16 @@ EOF
         if [[ "${TELEPORT_DOMAIN_ADMIN_EMAIL}" != "" && "${TELEPORT_DOMAIN_NAME}" != "" && "${TELEPORT_S3_BUCKET}" != "" ]]; then
             write_https_keypairs_section
 
-            # set up the database listeners
-            write_database_section TELEPORT_EXTERNAL_HOSTNAME
+            # don't write database/kubernetes sections if TLS routing is enabled
+            if [[ "${USE_TLS_ROUTING}" == "true" ]]; then
+                return
+            else
+                # set up the database listeners
+                write_database_section TELEPORT_EXTERNAL_HOSTNAME
 
-            # set up the kubernetes listener
-            write_kubernetes_section TELEPORT_EXTERNAL_HOSTNAME
+                # set up the kubernetes listener
+                write_kubernetes_section TELEPORT_EXTERNAL_HOSTNAME
+            fi
 
             # enable/start cert services and timers
             systemctl_wrap enable teleport-get-cert.service teleport-get-cert.timer
@@ -535,11 +558,16 @@ EOF
     elif [[ "${USE_ACM}" == "true" ]]; then
         echo "ACM support enabled"
 
-        # set up the database listeners
-        write_database_section TELEPORT_EXTERNAL_HOSTNAME
+        # don't write database/kubernetes sections if TLS routing is enabled
+        if [[ "${USE_TLS_ROUTING}" == "true" ]]; then
+            return
+        else
+            # set up the database listeners
+            write_database_section TELEPORT_EXTERNAL_HOSTNAME
 
-        # set up the kubernetes listener
-        write_kubernetes_section TELEPORT_EXTERNAL_HOSTNAME
+            # set up the kubernetes listener
+            write_kubernetes_section TELEPORT_EXTERNAL_HOSTNAME
+        fi
 
         systemctl_wrap disable teleport.service
         systemctl_wrap stop --no-block teleport.service

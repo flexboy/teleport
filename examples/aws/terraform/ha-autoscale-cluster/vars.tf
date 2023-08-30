@@ -176,6 +176,13 @@ variable "use_acm" {
   default = false
 }
 
+// Whether to enable TLS routing in the cluster
+// See https://goteleport.com/docs/architecture/tls-routing/?scope=enterprise
+variable "use_tls_routing" {
+  type    = bool
+  default = false
+}
+
 // CIDR blocks allowed to connect to the bastion SSH port
 variable "allowed_bastion_ssh_ingress_cidr_blocks" {
   type    = list(any)

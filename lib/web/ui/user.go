@@ -30,6 +30,8 @@ type UserListEntry struct {
 	// AuthType is the type of auth service
 	// that the user was authenticated through.
 	AuthType string `json:"authType"`
+	// RoleVariableTraits are traits used for role variables.
+	RoleVariableTraits map[string][]string `json:"roleVariableTraits`
 }
 
 type userTraits struct {
@@ -70,9 +72,10 @@ func NewUserListEntry(teleUser types.User) (*UserListEntry, error) {
 	}
 
 	return &UserListEntry{
-		Name:     teleUser.GetName(),
-		Roles:    teleUser.GetRoles(),
-		AuthType: authType,
+		Name:               teleUser.GetName(),
+		Roles:              teleUser.GetRoles(),
+		AuthType:           authType,
+		RoleVariableTraits: teleUser.GetTraits(),
 	}, nil
 }
 

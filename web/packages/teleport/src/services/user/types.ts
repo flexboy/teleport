@@ -84,6 +84,8 @@ export interface Acl {
   accessList: Access;
 }
 
+export type RoleVariableTraits = Record<string, string[]>;
+
 export interface User {
   // name is the teleport username.
   name: string;
@@ -95,6 +97,7 @@ export interface User {
   // isLocal is true if json.authType was 'local'.
   isLocal?: boolean;
   traits?: UserTraits;
+  roleVariableTraits?: RoleVariableTraits;
 }
 
 // UserTraits contain fields that define traits for local accounts.

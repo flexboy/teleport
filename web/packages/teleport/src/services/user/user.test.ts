@@ -270,6 +270,7 @@ test('fetch users, null response values gives empty array', async () => {
       isLocal: false,
       name: '',
       roles: [],
+      roleVariableTraits: {},
       traits: {
         awsRoleArns: [],
         databaseNames: [],

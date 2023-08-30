@@ -18,7 +18,7 @@ import { User } from './types';
 
 export default function makeUser(json: any): User {
   json = json || {};
-  const { name, roles, authType, traits = {} } = json;
+  const { name, roles, authType, traits = {}, roleVariableTraits } = json;
 
   return {
     name,
@@ -34,6 +34,7 @@ export default function makeUser(json: any): User {
       windowsLogins: traits.windowsLogins || [],
       awsRoleArns: traits.awsRoleArns || [],
     },
+    roleVariableTraits: roleVariableTraits || {},
   };
 }
 

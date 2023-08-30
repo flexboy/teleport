@@ -29,6 +29,12 @@ load fixtures/common
   [ ${GENERATE_EXIT_CODE?} -eq 0 ]
 }
 
+@test "[${TEST_SUITE?}] config file version is v3" {
+    load ${TELEPORT_CONFD_DIR?}/conf
+    cat "${TELEPORT_CONFIG_PATH?}"
+    cat "${TELEPORT_CONFIG_PATH?}" | grep -E "^version: v3"
+}
+
 # in each test, we echo the block so that if the test fails, we can see the block being tested
 @test "[${TEST_SUITE?}] teleport.storage.type is set correctly" {
     load ${TELEPORT_CONFD_DIR?}/conf

@@ -2,7 +2,7 @@ write_confd_file() {
     cat << EOF > ${TELEPORT_CONFD_DIR?}/conf
 TELEPORT_ROLE=auth,node,proxy
 EC2_REGION=us-west-2
-TELEPORT_AUTH_TYPE=local
+TELEPORT_AUTH_TYPE=saml
 TELEPORT_AUTH_SERVER_LB=localhost
 TELEPORT_CLUSTER_NAME=gus-startercluster
 TELEPORT_DOMAIN_ADMIN_EMAIL=email@example.com
@@ -17,9 +17,9 @@ TELEPORT_S3_BUCKET=gus-startercluster-s3.gravitational.io
 TELEPORT_ENABLE_MONGODB=true
 TELEPORT_ENABLE_MYSQL=true
 TELEPORT_ENABLE_POSTGRES=true
-USE_LETSENCRYPT=false
-USE_ACM=true
-USE_TLS_ROUTING=false
+USE_LETSENCRYPT=true
+USE_ACM=false
+USE_TLS_ROUTING=true
 EOF
 }
 
@@ -75,49 +75,62 @@ load fixtures/common
 @test "[${TEST_SUITE?}] auth_service.authentication.type is set correctly" {
     load ${TELEPORT_CONFD_DIR?}/conf
     echo "${AUTH_BLOCK?}"
-    echo "${AUTH_BLOCK?}" | grep -E "^    type:" | grep -q "local"
+    echo "${AUTH_BLOCK?}" | grep -E "^    type:" | grep -q "saml"
 }
 
-@test "[${TEST_SUITE?}] proxy_service.ssh_public_addr is set correctly" {
+@test "[${TEST_SUITE?}] proxy_service.public_addr is set correctly" {
     load ${TELEPORT_CONFD_DIR?}/conf
     echo "${PROXY_BLOCK?}"
-    echo "${PROXY_BLOCK?}" | grep -E "^  ssh_public_addr:" | grep -q "${TELEPORT_DOMAIN_NAME?}:3023"
+    echo "${PROXY_BLOCK?}" | grep -E "^  public_addr:" ${TELEPORT_CONFIG_PATH?} | grep -q "${TELEPORT_DOMAIN_NAME?}:3080"
 }
 
-@test "[${TEST_SUITE?}] proxy_service.tunnel_public_addr is set correctly" {
+@test "[${TEST_SUITE?}] proxy_service.ssh_public_addr is not set" {
     load ${TELEPORT_CONFD_DIR?}/conf
     echo "${PROXY_BLOCK?}"
-    echo "${PROXY_BLOCK?}" | grep -E "^  tunnel_public_addr:" | grep -q "${TELEPORT_DOMAIN_NAME?}:3024"
+    # this test inverts the regular behaviour of grep -q, so only succeeds if the line _isn't_ present
+    echo "${PROXY_BLOCK?}" | { ! grep -qE "^  ssh_public_addr: "; }
 }
 
-@test "[${TEST_SUITE?}] proxy_service.postgres_public_addr is set correctly" {
+@test "[${TEST_SUITE?}] proxy_service.postgres_public_addr is not set" {
     load ${TELEPORT_CONFD_DIR?}/conf
     echo "${PROXY_BLOCK?}"
-    echo "${PROXY_BLOCK?}" | grep -E "^  postgres_public_addr:" | grep -q "${TELEPORT_DOMAIN_NAME?}:5432"
+    # this test inverts the regular behaviour of grep -q, so only succeeds if the line _isn't_ present
+    echo "${PROXY_BLOCK?}" | { ! grep -qE "^  postgres_public_addr: "; }
 }
 
-@test "[${TEST_SUITE?}] proxy_service.mysql_public_addr is set correctly" {
+@test "[${TEST_SUITE?}] proxy_service.mysql_public_addr is not set" {
     load ${TELEPORT_CONFD_DIR?}/conf
     echo "${PROXY_BLOCK?}"
-    echo "${PROXY_BLOCK?}" | grep -E "^  mysql_public_addr:" | grep -q "${TELEPORT_DOMAIN_NAME?}:3036"
+    # this test inverts the regular behaviour of grep -q, so only succeeds if the line _isn't_ present
+    echo "${PROXY_BLOCK?}" | { ! grep -qE "^  mysql_public_addr: "; }
 }
 
-@test "[${TEST_SUITE?}] proxy_service.mongo_public_addr is set correctly" {
+@test "[${TEST_SUITE?}] proxy_service.mongo_public_addr is not set" {
     load ${TELEPORT_CONFD_DIR?}/conf
     echo "${PROXY_BLOCK?}"
-    echo "${PROXY_BLOCK?}" | grep -E "^  mongo_public_addr:" | grep -q "${TELEPORT_DOMAIN_NAME?}:27017"
+    # this test inverts the regular behaviour of grep -q, so only succeeds if the line _isn't_ present
+    echo "${PROXY_BLOCK?}" | { ! grep -qE "^  mongo_public_addr: "; }
 }
 
-@test "[${TEST_SUITE?}] proxy_service.listen_addr is set correctly" {
+@test "[${TEST_SUITE?}] proxy_service.tunnel_public_addr is not set" {
     load ${TELEPORT_CONFD_DIR?}/conf
     echo "${PROXY_BLOCK?}"
-    echo "${PROXY_BLOCK?}" | grep -E "^  listen_addr: " | grep -q "0.0.0.0:3023"
+    # this test inverts the regular behaviour of grep -q, so only succeeds if the line _isn't_ present
+    echo "${PROXY_BLOCK?}" | { ! grep -qE "^  tunnel_public_addr: "; }
 }
 
-@test "[${TEST_SUITE?}] proxy_service.tunnel_listen_addr is set correctly" {
+@test "[${TEST_SUITE?}] proxy_service.listen_addr is not set" {
     load ${TELEPORT_CONFD_DIR?}/conf
     echo "${PROXY_BLOCK?}"
-    echo "${PROXY_BLOCK?}" | grep -E "^  tunnel_listen_addr: " | grep -q "0.0.0.0:3024"
+    # this test inverts the regular behaviour of grep -q, so only succeeds if the line _isn't_ present
+    echo "${PROXY_BLOCK?}" | { ! grep -qE "^  listen_addr: "; }
+}
+
+@test "[${TEST_SUITE?}] proxy_service.tunnel_listen_addr is not set" {
+    load ${TELEPORT_CONFD_DIR?}/conf
+    echo "${PROXY_BLOCK?}"
+    # this test inverts the regular behaviour of grep -q, so only succeeds if the line _isn't_ present
+    echo "${PROXY_BLOCK?}" | { ! grep -qE "^  tunnel_listen_addr: "; }
 }
 
 @test "[${TEST_SUITE?}] proxy_service.web_listen_addr is set correctly" {
@@ -126,28 +139,32 @@ load fixtures/common
     echo "${PROXY_BLOCK?}" | grep -E "^  web_listen_addr: " | grep -q "0.0.0.0:3080"
 }
 
-@test "[${TEST_SUITE?}] proxy_service.mysql_listen_addr is set correctly" {
+@test "[${TEST_SUITE?}] proxy_service.mysql_listen_addr is not set" {
     load ${TELEPORT_CONFD_DIR?}/conf
     echo "${PROXY_BLOCK?}"
-    echo "${PROXY_BLOCK?}" | grep -E "^  mysql_listen_addr: " | grep -q "0.0.0.0:3036"
+    # this test inverts the regular behaviour of grep -q, so only succeeds if the line _isn't_ present
+    echo "${PROXY_BLOCK?}" | { ! grep -qE "^  mysql_listen_addr: "; }
 }
 
-@test "[${TEST_SUITE?}] proxy_service.postgres_listen_addr is set correctly" {
+@test "[${TEST_SUITE?}] proxy_service.postgres_listen_addr is not set" {
     load ${TELEPORT_CONFD_DIR?}/conf
     echo "${PROXY_BLOCK?}"
-    echo "${PROXY_BLOCK?}" | grep -E "^  postgres_listen_addr: " | grep -q "0.0.0.0:5432"
+    # this test inverts the regular behaviour of grep -q, so only succeeds if the line _isn't_ present
+    echo "${PROXY_BLOCK?}" | { ! grep -qE "^  postgres_listen_addr: "; }
 }
 
-@test "[${TEST_SUITE?}] proxy_service.mongo_listen_addr is set correctly" {
+@test "[${TEST_SUITE?}] proxy_service.mongo_listen_addr is not set" {
     load ${TELEPORT_CONFD_DIR?}/conf
     echo "${PROXY_BLOCK?}"
-    echo "${PROXY_BLOCK?}" | grep -E "^  mongo_listen_addr: " | grep -q "0.0.0.0:27017"
+    # this test inverts the regular behaviour of grep -q, so only succeeds if the line _isn't_ present
+    echo "${PROXY_BLOCK?}" | { ! grep -qE "^  mongo_listen_addr: "; }
 }
 
-@test "[${TEST_SUITE?}] proxy_service.kubernetes.public_addr is set correctly" {
+@test "[${TEST_SUITE?}] proxy_service.kubernetes block is not set" {
     load ${TELEPORT_CONFD_DIR?}/conf
     echo "${PROXY_BLOCK?}"
-    echo "${PROXY_BLOCK?}" | grep -E "^  kubernetes:" -A3 | grep -E "^    public_addr" | grep -q "['${TELEPORT_DOMAIN_NAME?}:3026']"
+    # this test inverts the regular behaviour of grep -q, so only succeeds if the line _isn't_ present
+    echo "${PROXY_BLOCK?}" | { ! grep -qE "^  kubernetes: "; }
 }
 
 @test "[${TEST_SUITE?}] node_service.listen_addr is set correctly" {

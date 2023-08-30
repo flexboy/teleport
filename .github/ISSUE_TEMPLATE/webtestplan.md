@@ -37,9 +37,9 @@ For main, test with a role that has access to all resources.
 - [ ] Verify that clicking on `Add Resource` button correctly sends to the resource discovery page
 #### Applications
 - [ ] Verify that the app icons are correctly displayed
-- [ ] Verify that filtering types by Application includes databases in the page
+- [ ] Verify that filtering types by Application includes applications in the page
 - [ ] Verify that the `Launch` button for applications correctly send to the app
-- [ ] Verify that the `Launch` button for AWS apps correctly renders an IAM role selectio window 
+- [ ] Verify that the `Launch` button for AWS apps correctly renders an IAM role selection window 
 #### Databases
 - [ ] Verify that the database subtype icons are correctly displayed
 - [ ] Verify that filtering types by Databases includes databases in the page

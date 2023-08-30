@@ -1130,7 +1130,7 @@ func ConvertAuthorizerError(ctx context.Context, log logrus.FieldLogger, err err
 		// unaltered so that they know to reauthenticate with a valid key.
 		return trace.Unwrap(err)
 	default:
-		log.Warn(trace.DebugReport(err))
+		log.WithError(err).Warnf("Suppressing unknown authz error.")
 	}
 	return trace.AccessDenied("access denied")
 }

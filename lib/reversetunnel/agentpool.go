@@ -250,8 +250,9 @@ func (p *AgentPool) Start() error {
 
 	p.wg.Add(1)
 	go func() {
-		err := p.run()
-		p.log.WithError(err).Warn("Agent pool exited.")
+		if err := p.run(); err != nil {
+			p.log.WithError(err).Warn("Agent pool exited.")
+		}
 
 		p.cancel()
 		p.wg.Done()
@@ -263,11 +264,14 @@ func (p *AgentPool) Start() error {
 func (p *AgentPool) run() error {
 	for {
 		if p.ctx.Err() != nil {
-			return trace.Wrap(p.ctx.Err())
+			return nil
 		}
 
 		agent, err := p.connectAgent(p.ctx, p.events)
 		if err != nil {
+			if p.ctx.Err() != nil {
+				return nil
+			}
 			p.log.WithError(err).Debugf("Failed to connect agent.")
 		} else {
 			p.wg.Add(1)
@@ -386,7 +390,7 @@ func (p *AgentPool) waitForBackoff(ctx context.Context, events <-chan Agent) err
 	for {
 		select {
 		case <-ctx.Done():
-			return trace.Wrap(ctx.Err())
+			return nil
 		case <-p.backoff.After():
 			p.backoff.Inc()
 			return nil

@@ -2704,6 +2704,10 @@ func (process *TeleportProcess) initSSH() error {
 		// Block and wait while the node is running.
 		event, err := process.WaitForEvent(process.ExitContext(), TeleportExitEvent)
 		if err != nil {
+			if process.ExitContext().Err() != nil {
+				// doing a very un-graceful exit
+				return nil
+			}
 			return trace.Wrap(err)
 		}
 

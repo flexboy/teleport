@@ -227,7 +227,9 @@ func (g *GRPCServer) CreateAuditStream(stream authpb.AuthService_CreateAuditStre
 
 	closeStream := func(eventStream apievents.Stream) {
 		if err := eventStream.Close(auth.CloseContext()); err != nil {
-			g.WithError(err).Warningf("Failed to flush close the stream.")
+			if auth.CloseContext().Err() == nil {
+				g.WithError(err).Warningf("Failed to flush close the stream.")
+			}
 		} else {
 			g.Debugf("Flushed and closed the stream.")
 		}
@@ -239,7 +241,9 @@ func (g *GRPCServer) CreateAuditStream(stream authpb.AuthService_CreateAuditStre
 			return nil
 		}
 		if err != nil {
-			g.WithError(err).Debugf("Failed to receive stream request.")
+			if stream.Context().Err() == nil {
+				g.WithError(err).Debugf("Failed to receive stream request.")
+			}
 			return trace.Wrap(err)
 		}
 		if create := request.GetCreateStream(); create != nil {

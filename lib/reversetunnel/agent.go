@@ -487,7 +487,7 @@ func (a *agent) handleGlobalRequests(ctx context.Context, requests <-chan *ssh.R
 				}
 			}
 		case <-ctx.Done():
-			return trace.Wrap(ctx.Err())
+			return nil
 		}
 	}
 }
@@ -532,7 +532,7 @@ func (a *agent) handleDrainChannels() error {
 
 		select {
 		case <-a.ctx.Done():
-			return trace.Wrap(a.ctx.Err())
+			return nil
 		// Signal once when the drain context is canceled to ensure we unblock
 		// to call drainWG.Done().
 		case <-drainSignal:
@@ -592,7 +592,7 @@ func (a *agent) handleChannels() error {
 		select {
 		// need to exit:
 		case <-a.ctx.Done():
-			return trace.Wrap(a.ctx.Err())
+			return nil
 		// new discovery request channel
 		case nch := <-a.discoveryC:
 			if nch == nil {

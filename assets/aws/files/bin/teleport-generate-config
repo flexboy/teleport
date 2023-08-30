@@ -356,12 +356,15 @@ cat >>${USE_CONFIG_PATH} <<EOF
 EOF
         # write ssh/tunnel config
         write_ssh_and_tunnel_section 443
+    fi
 
-        # if we are using letsencrypt (i.e. not ACM) then append config lines
-        if [[ "${USE_ACM}" != "true" ]]; then
-            write_https_keypairs_section
-        fi
+    # if we are using letsencrypt (i.e. not ACM) then append config lines
+    if [[ "${USE_ACM}" != "true" ]]; then
+        write_https_keypairs_section
+    fi
 
+    # if we are not using TLS routing, then append database/kubernetes sections
+    if [[ "${USE_TLS_ROUTING}" != "true" ]]; then
         # set up the database listeners
         write_database_section TELEPORT_DOMAIN_NAME
 

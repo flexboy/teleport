@@ -161,6 +161,13 @@ load fixtures/common
     echo "${PROXY_BLOCK?}" | { ! grep -qE "^  kubernetes: "; }
 }
 
+@test "[${TEST_SUITE?}] proxy_service.https_keypairs is not set" {
+    load ${TELEPORT_CONFD_DIR?}/conf
+    echo "${PROXY_BLOCK?}"
+    # this test inverts the regular behaviour of grep -q, so only succeeds if the line _isn't_ present
+    echo "${PROXY_BLOCK?}" | { ! grep -qE "^  https_keypairs:"; }
+}
+
 @test "[${TEST_SUITE?}] node_service.listen_addr is set correctly" {
     load ${TELEPORT_CONFD_DIR?}/conf
     echo "${NODE_BLOCK?}"

@@ -155,3 +155,10 @@ load fixtures/common
     echo "${NODE_BLOCK?}"
     echo "${NODE_BLOCK?}" | grep -E "^  listen_addr: " | grep -q "0.0.0.0:3022"
 }
+
+@test "[${TEST_SUITE?}] proxy_service.https_keypairs is not set" {
+    load ${TELEPORT_CONFD_DIR?}/conf
+    echo "${PROXY_BLOCK?}"
+    # this test inverts the regular behaviour of grep -q, so only succeeds if the line _isn't_ present
+    echo "${PROXY_BLOCK?}" | { ! grep -qE "^  https_keypairs:"; }
+}

@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
+import { ResourceIconName } from 'design/ResourceIcon';
+
 import { ResourceLabel } from 'teleport/services/agents';
 
+type GuessedAppType = ResourceIconName;
 export interface App {
   kind: 'app';
   id: string;
@@ -39,12 +42,8 @@ export interface App {
   samlApp: boolean;
   // samlAppSsoUrl is the URL that triggers IdP-initiated SSO for SAML Application;
   samlAppSsoUrl?: string;
-  // isGrafana is true if the name includes grafana or has the label "icon:grafana"
-  isGrafana?: boolean;
-  // isJenkins is true if the name includes jenkins or has the label "icon:jenkins"
-  isJenkins?: boolean;
-  // isSlack is true if the name includes slack or has the label "icon:slack"
-  isSlack?: boolean;
+  // guessedAppIcon is our best guess at what type of app this is based on factors like name and labels
+  guessedAppIcon?: GuessedAppType;
 }
 
 export type AwsRole = {

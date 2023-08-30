@@ -33,7 +33,6 @@ import {
   UnifiedResource,
   UnifiedResourceKind,
 } from 'teleport/services/agents';
-import { App } from 'teleport/services/apps';
 
 import { ResourceActionButton } from './ResourceActionButton';
 
@@ -222,30 +221,10 @@ function resourceDescription(resource: UnifiedResource) {
   }
 }
 
-function appIconName(resource: App): ResourceIconName {
-  if (resource.isGrafana) {
-    return 'Grafana';
-  }
-
-  if (resource.isSlack) {
-    return 'Slack';
-  }
-
-  if (resource.isJenkins) {
-    return 'Jenkins';
-  }
-
-  if (resource.awsConsole) {
-    return 'Aws';
-  }
-
-  return 'Application';
-}
-
 function resourceIconName(resource: UnifiedResource): ResourceIconName {
   switch (resource.kind) {
     case 'app':
-      return appIconName(resource);
+      return resource.guessedAppIcon;
     case 'db':
       return 'Database';
     case 'kube_cluster':

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { ResourceIconName } from 'design/ResourceIcon';
+
 import cfg from 'teleport/config';
 
 import { App } from './types';
@@ -43,17 +45,6 @@ export default function makeApp(json: any): App {
 
   const isTcp = uri && uri.startsWith('tcp://');
   const isCloud = uri && uri.startsWith('cloud://');
-  const isGrafana =
-    name.toLocaleLowerCase().includes('grafana') ||
-    labels.some(l => `${l.name}:${l.value}` === 'icon:grafana');
-
-  const isSlack =
-    name.toLocaleLowerCase().includes('slack') ||
-    labels.some(l => `${l.name}:${l.value}` === 'icon:slack');
-
-  const isJenkins =
-    name.toLocaleLowerCase().includes('jenkins') ||
-    labels.some(l => `${l.name}:${l.value}` === 'icon:jenkins');
 
   let addrWithProtocol = uri;
   if (publicAddr) {
@@ -85,13 +76,37 @@ export default function makeApp(json: any): App {
     awsRoles,
     awsConsole,
     isCloudOrTcpEndpoint: isTcp || isCloud,
-    isGrafana,
-    isJenkins,
-    isSlack,
+    guessedAppIcon: guessAppIcon(json),
     addrWithProtocol,
     friendlyName,
     userGroups,
     samlApp,
     samlAppSsoUrl,
   };
+}
+
+function guessAppIcon(json: any): ResourceIconName {
+  const { name, labels } = json;
+  if (
+    name.toLocaleLowerCase().includes('grafana') ||
+    labels.some(l => `${l.name}:${l.value}` === 'icon:grafana')
+  ) {
+    return 'Grafana';
+  }
+
+  if (
+    name.toLocaleLowerCase().includes('slack') ||
+    labels.some(l => `${l.name}:${l.value}` === 'icon:slack')
+  ) {
+    return 'Slack';
+  }
+
+  if (
+    name.toLocaleLowerCase().includes('jenkins') ||
+    labels.some(l => `${l.name}:${l.value}` === 'icon:jenkins')
+  ) {
+    return 'Jenkins';
+  }
+
+  return 'Application';
 }

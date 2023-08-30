@@ -14,6 +14,7 @@ TELEPORT_LICENSE_PATH=/home/gus/downloads/teleport/license-gus.pem
 TELEPORT_LOCKS_TABLE_NAME=gus-tftestkube4-locks
 TELEPORT_S3_BUCKET=gus-tftestkube4.gravitational.io
 USE_ACM=false
+USE_TLS_ROUTING=false
 EOF
     export TELEPORT_TEST_FIPS_MODE=true
 }

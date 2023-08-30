@@ -70,6 +70,7 @@ variable "add_wildcard_route53_record" {
 
 // whether to enable the mongodb listener
 // adds security group setting, maps load balancer to port, and adds to teleport config
+// this setting will be ignored if use_tls_routing=true
 variable "enable_mongodb_listener" {
   type    = bool
   default = false
@@ -77,6 +78,7 @@ variable "enable_mongodb_listener" {
 
 // whether to enable the mysql listener
 // adds security group setting, maps load balancer to port, and adds to teleport config
+// this setting will be ignored if use_tls_routing=true
 variable "enable_mysql_listener" {
   type    = bool
   default = false
@@ -84,6 +86,7 @@ variable "enable_mysql_listener" {
 
 // whether to enable the postgres listener
 // adds security group setting, maps load balancer to port, and adds to teleport config
+// this setting will be ignored if use_tls_routing=true
 variable "enable_postgres_listener" {
   type    = bool
   default = false
@@ -177,7 +180,10 @@ variable "use_acm" {
 }
 
 // Whether to enable TLS routing in the cluster
-// See https://goteleport.com/docs/architecture/tls-routing/?scope=enterprise
+// See https://goteleport.com/docs/architecture/tls-routing for more information
+// Setting this will disable ALL separate listener ports. If you also use ACM, then:
+// - you must use Teleport and tsh v13+
+// - you must use `tsh proxy` commands for Kubernetes/database access
 variable "use_tls_routing" {
   type    = bool
   default = false

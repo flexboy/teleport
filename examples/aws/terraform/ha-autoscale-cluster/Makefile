@@ -57,7 +57,7 @@ TF_VAR_grafana_pass ?=
 # terraform import aws_acm_certificate.cert <certificate_arn>
 # TF_VAR_use_acm ?=
 
-# Set to true to use TLS routing to multiplex all Teleport traffic over one port
+# (optional) Set to true to use TLS routing to multiplex all Teleport traffic over one port
 # See https://goteleport.com/docs/architecture/tls-routing for more information
 # Setting this will disable ALL separate listener ports. If you also use ACM, then:
 # - you must use Teleport and tsh v13+

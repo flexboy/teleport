@@ -56,6 +56,13 @@ export TF_VAR_key_name="example"
 # Terraform import aws_acm_certificate.cert <certificate_arn>
 # export TF_VAR_use_acm="false"
 
+# (optional) Set to true to use TLS routing to multiplex all Teleport traffic over one port
+# See https://goteleport.com/docs/architecture/tls-routing for more information
+# Setting this will disable ALL separate listener ports. If you also use ACM, then:
+# - you must use Teleport and tsh v13+
+# - you must use `tsh proxy` commands for Kubernetes/database access
+TF_VAR_use_tls_routing ?= false
+
 # Full absolute path to the license file for Teleport Enterprise.
 # This license will be copied into SSM and then pulled down on the auth nodes to enable Enterprise functionality
 export TF_VAR_license_path="/path/to/license"

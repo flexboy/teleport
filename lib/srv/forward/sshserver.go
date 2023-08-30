@@ -241,6 +241,13 @@ type ServerConfig struct {
 	// It **MUST** only be populated when the target is a teleport ssh server
 	// or an agentless server.
 	TargetServer types.Server
+
+	AccessGraph AccessGraph
+}
+
+type AccessGraph struct {
+	Enabled  bool
+	Endpoint string
 }
 
 // CheckDefaults makes sure all required parameters are passed in.
@@ -355,6 +362,9 @@ func New(c ServerConfig) (*Server, error) {
 		TargetServer: c.TargetServer,
 		FIPS:         c.FIPS,
 		Clock:        c.Clock,
+	}
+	if c.AccessGraph.Enabled {
+		authHandlerConfig.Opts = append(authHandlerConfig.Opts, services.WithTAG(c.AccessGraph.Endpoint))
 	}
 
 	s.authHandlers, err = srv.NewAuthHandlers(&authHandlerConfig)

@@ -234,7 +234,7 @@ resource "aws_lb_target_group" "proxy_tunnel_acm" {
   vpc_id   = aws_vpc.teleport.id
   protocol = "TCP"
   // only create this if ACM is enabled and TLS routing is disabled
-  count    = var.use_acm ? !var.use_tls_routing ? 1 : 0 : 0
+  count = var.use_acm ? !var.use_tls_routing ? 1 : 0 : 0
 }
 
 resource "aws_lb_listener" "proxy_tunnel_acm" {
@@ -242,7 +242,7 @@ resource "aws_lb_listener" "proxy_tunnel_acm" {
   port              = "3024"
   protocol          = "TCP"
   // only create this if ACM is enabled and TLS routing is disabled
-  count    = var.use_acm ? !var.use_tls_routing ? 1 : 0 : 0
+  count = var.use_acm ? !var.use_tls_routing ? 1 : 0 : 0
 
   default_action {
     target_group_arn = aws_lb_target_group.proxy_tunnel_acm[0].arn
@@ -284,7 +284,7 @@ resource "aws_lb_listener" "proxy_mysql" {
   port              = "3036"
   protocol          = "TCP"
   // only create this if the mysql listener is enabled and TLS routing is disabled
-  count             = var.enable_mysql_listener ? !var.use_tls_routing ? 1 : 0 : 0
+  count = var.enable_mysql_listener ? !var.use_tls_routing ? 1 : 0 : 0
 
   default_action {
     target_group_arn = aws_lb_target_group.proxy_mysql.arn
@@ -305,7 +305,7 @@ resource "aws_lb_listener" "proxy_postgres" {
   port              = "5432"
   protocol          = "TCP"
   // only create this if the postgres listener is enabled and TLS routing is disabled
-  count    = var.enable_postgres_listener ? !var.use_tls_routing ? 1 : 0 : 0
+  count = var.enable_postgres_listener ? !var.use_tls_routing ? 1 : 0 : 0
 
   default_action {
     target_group_arn = aws_lb_target_group.proxy_postgres.arn
@@ -326,7 +326,7 @@ resource "aws_lb_listener" "proxy_mongodb" {
   port              = "27017"
   protocol          = "TCP"
   // only create this if the mongo listener is enabled and TLS routing is disabled
-  count    = var.enable_mongodb_listener ? !var.use_tls_routing ? 1 : 0 : 0
+  count = var.enable_mongodb_listener ? !var.use_tls_routing ? 1 : 0 : 0
 
   default_action {
     target_group_arn = aws_lb_target_group.proxy_mongodb.arn

@@ -21,13 +21,13 @@ resource "aws_autoscaling_group" "proxy" {
   // Auto scaling group is associated with load balancer
   // When TLS routing is enabled, we only expose the web TLS listener
   target_group_arns = var.use_tls_routing ? [aws_lb_target_group.proxy_web[0].arn] : [
-                        aws_lb_target_group.proxy_proxy[0].arn,
-                        aws_lb_target_group.proxy_web[0].arn,
-                        aws_lb_target_group.proxy_kube[0].arn,
-                        aws_lb_target_group.proxy_mysql.arn,
-                        aws_lb_target_group.proxy_postgres.arn,
-                        aws_lb_target_group.proxy_mongodb.arn,
-                      ]
+    aws_lb_target_group.proxy_proxy[0].arn,
+    aws_lb_target_group.proxy_web[0].arn,
+    aws_lb_target_group.proxy_kube[0].arn,
+    aws_lb_target_group.proxy_mysql.arn,
+    aws_lb_target_group.proxy_postgres.arn,
+    aws_lb_target_group.proxy_mongodb.arn,
+  ]
 
   count = var.use_acm ? 0 : 1
 
@@ -73,14 +73,14 @@ resource "aws_autoscaling_group" "proxy_acm" {
   // Auto scaling group is associated with load balancer
   // When TLS routing is enabled, we only expose the web TLS listener
   target_group_arns = var.use_tls_routing ? [aws_lb_target_group.proxy_web_acm[0].arn] : [
-                                              aws_lb_target_group.proxy_proxy[0].arn,
-                                              aws_lb_target_group.proxy_tunnel_acm[0].arn,
-                                              aws_lb_target_group.proxy_web_acm[0].arn,
-                                              aws_lb_target_group.proxy_kube[0].arn,
-                                              aws_lb_target_group.proxy_mysql.arn,
-                                              aws_lb_target_group.proxy_postgres.arn,
-                                              aws_lb_target_group.proxy_mongodb.arn,
-                                            ]
+    aws_lb_target_group.proxy_proxy[0].arn,
+    aws_lb_target_group.proxy_tunnel_acm[0].arn,
+    aws_lb_target_group.proxy_web_acm[0].arn,
+    aws_lb_target_group.proxy_kube[0].arn,
+    aws_lb_target_group.proxy_mysql.arn,
+    aws_lb_target_group.proxy_postgres.arn,
+    aws_lb_target_group.proxy_mongodb.arn,
+  ]
 
   count = var.use_acm ? 1 : 0
 

@@ -14,8 +14,6 @@
 
 package eventschema
 
-var EventTypes = eventTypes
-
 // This list is manually curated to contain events that are relevant to the user
 // in a security report context.
 var eventTypes = []string{

@@ -107,6 +107,14 @@ type ColumnSchemaDetails struct {
 	Description string
 }
 
+func (c *ColumnSchemaDetails) viewSchema() string {
+	return viewSchemaLine(c.NameJSON(), c.NameSQL(), c.Type)
+}
+
+func (c *ColumnSchemaDetails) tableSchema() string {
+	return viewSchemaLine(c.NameJSON(), c.NameSQL(), c.Type)
+}
+
 func (c *ColumnSchemaDetails) NameJSON() string {
 	sb := strings.Builder{}
 	sb.WriteString("$")
@@ -121,7 +129,7 @@ func (c *ColumnSchemaDetails) NameSQL() string {
 
 func GetViewsDetails() ([]*TableSchemaDetails, error) {
 	var out []*TableSchemaDetails
-	for _, eventName := range EventTypes {
+	for _, eventName := range eventTypes {
 		es, err := GetEventSchemaFromType(eventName)
 		if err != nil {
 			return nil, trace.Wrap(err)
@@ -137,126 +145,53 @@ func GetViewsDetails() ([]*TableSchemaDetails, error) {
 	return out, nil
 }
 
+// TableSchemaDetails returns a CSV description of the event table schema.
+// This explains to the query writer which field are available.
+// This must not be confused with ViewSchema which returns the Athena SQL
+// statements used to build a view extracting content from raw event_data.
 func (event *Event) TableSchemaDetails() (*TableSchemaDetails, error) {
 	out := TableSchemaDetails{
 		Description: event.Description,
 	}
 	for _, prop := range event.Fields {
-		column, err := prop.TableSchemaDetails([]string{prop.Name})
+		columns, err := prop.TableSchemaDetails([]string{prop.Name})
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
-		if column == nil {
+		if columns == nil {
 			continue
 		}
-		out.Columns = append(out.Columns, column)
+		out.Columns = append(out.Columns, columns...)
 	}
 	return &out, nil
 }
 
-// TableSchema returns a CSV description of the event table schema.
+// TableSchemaDetails returns a CSV description of the EventField schema.
 // This explains to the query writer which field are available.
-// This must not be confused with ViewSchema which returns the Athena SQL
-// statements used to build a view extracting content from raw event_data.
-func (event *Event) TableSchema() (string, error) {
-	sb := strings.Builder{}
-	sb.WriteString("column_name, column_type, description\n")
-	sb.WriteString("event_date, date, is the event date\n")
-	sb.WriteString("event_time, timestamp, is the event time\n")
-	for _, prop := range event.Fields {
-		line, err := prop.TableSchema([]string{prop.Name})
-		if err != nil {
-			return "", trace.Wrap(err)
-		}
-		sb.WriteString(line)
-	}
-	return sb.String(), nil
-}
-
-// TableSchema returns a CSV description of the EventField schema.
-// This explains to the query writer which field are available.
-func (field *EventField) TableSchema(path []string) (string, error) {
-	sb := strings.Builder{}
+func (field *EventField) TableSchemaDetails(path []string) ([]*ColumnSchemaDetails, error) {
 	switch field.Type {
 	case "object":
-		for _, prop := range field.Fields {
-			line, err := prop.TableSchema(append(path, prop.Name))
-			if err != nil {
-				return "", trace.Wrap(err)
-			}
-			sb.WriteString(line)
-		}
-	case "string", "integer", "boolean", "date-time", "array":
-		sb.WriteString(tableSchemaLine(sqlFieldName(path), field.dmlType(), field.Description))
-	default:
-		return "", trace.NotImplemented("field type '%s' not supported", field.Type)
-	}
-	return sb.String(), nil
-}
-
-func (field *EventField) TableSchemaDetails(path []string) (*ColumnSchemaDetails, error) {
-	switch field.Type {
-	case "object":
+		var out []*ColumnSchemaDetails
 		for _, prop := range field.Fields {
 			r, err := prop.TableSchemaDetails(append(path, prop.Name))
 			if err != nil {
 				return nil, trace.Wrap(err)
 			}
-			return r, nil
+			out = append(out, r...)
 		}
+		return out, nil
 	case "string", "integer", "boolean", "date-time", "array":
-		return &ColumnSchemaDetails{
-			Path:        path,
-			Type:        field.dmlType(),
-			Description: field.Description,
+		return []*ColumnSchemaDetails{
+			{
+				Path:        path,
+				Type:        field.dmlType(),
+				Description: field.Description,
+			},
 		}, nil
 	default:
 		return nil, trace.NotImplemented("field type '%s' not supported", field.Type)
 	}
 	return nil, nil
-}
-
-// ViewSchema returns the AthenaSQL statement used to build a view extracting
-// content from the raw event data.
-func (event *Event) ViewSchema() (string, error) {
-	sb := strings.Builder{}
-	sb.WriteString("SELECT\n")
-	sb.WriteString("  event_date, event_time\n")
-
-	for _, prop := range event.Fields {
-		line, err := prop.ViewSchema([]string{prop.Name})
-		if err != nil {
-			return "", trace.Wrap(err)
-		}
-		sb.WriteString(line)
-	}
-	return sb.String(), nil
-}
-
-// ViewSchema returns the AthenaSQL statement used to build a view extracting
-// content from the raw event data.
-func (field *EventField) ViewSchema(path []string) (string, error) {
-	sb := strings.Builder{}
-	switch field.Type {
-	case "object":
-		for _, prop := range field.Fields {
-			line, err := prop.ViewSchema(append(path, prop.Name))
-			if err != nil {
-				return "", trace.Wrap(err)
-			}
-			sb.WriteString(line)
-		}
-
-	case "string", "integer", "boolean", "date-time", "array":
-		sb.WriteString(viewSchemaLine(jsonFieldName(path), sqlFieldName(path), field.dmlType()))
-	default:
-		return "", trace.NotImplemented("field type '%s' not supported", field.Type)
-	}
-	return sb.String(), nil
-}
-
-func tableSchemaLine(columnName, columnType, description string) string {
-	return fmt.Sprintf("%s, %s, %s\n", columnName, columnType, description)
 }
 
 func (field *EventField) dmlType() string {

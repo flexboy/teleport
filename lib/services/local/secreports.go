@@ -159,13 +159,6 @@ func (s *SecReportsService) UpsertSecurityReportsState(ctx context.Context, item
 	}
 	return nil
 }
-func (s *SecReportsService) CompareAndAndSecurityReportsState(ctx context.Context, item *secreports.SecurityReportState) error {
-	s.securityReportStateSvc.UpdateAndSwapResource(ctx, item.GetName(), func(old *secreports.SecurityReportState) error {
-		old = item
-		return nil
-	})
-	return nil
-}
 
 func (s *SecReportsService) GetSecurityReportState(ctx context.Context, name string) (*secreports.SecurityReportState, error) {
 	r, err := s.securityReportStateSvc.GetResource(ctx, name)

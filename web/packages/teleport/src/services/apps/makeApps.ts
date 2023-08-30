@@ -86,7 +86,12 @@ export default function makeApp(json: any): App {
 }
 
 function guessAppIcon(json: any): ResourceIconName {
-  const { name, labels } = json;
+  const { name, labels, awsConsole = false } = json;
+
+  if (awsConsole) {
+    return 'Aws';
+  }
+
   if (
     name.toLocaleLowerCase().includes('grafana') ||
     labels.some(l => `${l.name}:${l.value}` === 'icon:grafana')

@@ -290,8 +290,6 @@ With the previous role you created from `Strategy Reason`, change `request_acces
 
 #### Node List Tab
 - [ ] Verify that Cluster selector works (URL should change too)
-- [ ] Verify that Quick launcher input works
-- [ ] Verify that Quick launcher input handles input errors
 - [ ] Verify that "Connect" button shows a list of available logins
 - [ ] Verify that "Hostname", "Address" and "Labels" columns show the current values
 - [ ] Verify that "Search" by hostname, address, labels work

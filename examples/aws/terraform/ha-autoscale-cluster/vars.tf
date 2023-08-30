@@ -258,6 +258,7 @@ variable "node_aws_route_dest_cidr_block" {
 
 // Optional domain name to use for Teleport proxy NLB alias
 // Only applied when using ACM, it will do nothing when ACM is disabled
+// Only applied when _not_ using TLS routing, it will do nothing when TLS routing is enabled
 // When using ACM we have one ALB (for port 443 with TLS termination) and one NLB
 // (for all other traffic - 3023/3024/3026 etc)
 // As this NLB is at a different address, we add an alias record in Route 53 so that

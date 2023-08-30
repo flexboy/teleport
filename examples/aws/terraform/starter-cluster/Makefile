@@ -33,15 +33,15 @@ TF_VAR_add_wildcard_route53_record ?= true
 
 # Enable adding MongoDB listeners in Teleport proxy, load balancer ports and security groups
 # This will be ignored if TF_VAR_use_tls_routing=true
-TF_VAR_enable_mongodb_listener ?= true
+TF_VAR_enable_mongodb_listener ?= false
 
 # Enable adding MySQL listeners in Teleport proxy, load balancer ports and security groups
 # This will be ignored if TF_VAR_use_tls_routing=true
-TF_VAR_enable_mysql_listener ?= true
+TF_VAR_enable_mysql_listener ?= false
 
 # Enable adding Postgres listeners in Teleport proxy, load balancer ports and security groups
 # This will be ignored if TF_VAR_use_tls_routing=true
-TF_VAR_enable_postgres_listener ?= true
+TF_VAR_enable_postgres_listener ?= false
 
 # Bucket name to store encrypted Let's Encrypt certificates.
 TF_VAR_s3_bucket_name ?=
@@ -62,7 +62,7 @@ TF_VAR_use_acm ?= false
 # Setting this will disable ALL separate listener ports. If you also use ACM, then:
 # - you must use Teleport and tsh v13+
 # - you must use `tsh proxy` commands for Kubernetes/database access
-TF_VAR_use_tls_routing ?= false
+TF_VAR_use_tls_routing ?= true
 
 export
 

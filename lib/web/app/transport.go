@@ -226,6 +226,9 @@ func (t *transport) rewriteRequest(r *http.Request) error {
 // DialContext dials and connect to the application service over the reverse
 // tunnel subsystem.
 func (t *transport) DialContext(ctx context.Context, _, _ string) (conn net.Conn, err error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	servers := t.c.servers[:0]
 	for i, appServer := range t.c.servers {
 		conn, err = dialAppServer(ctx, t.c.proxyClient, t.c.identity.RouteToApp.ClusterName, appServer)
@@ -243,6 +246,9 @@ func (t *transport) DialContext(ctx context.Context, _, _ string) (conn net.Conn
 		break
 	}
 
+	// The above loop will filter out any servers that should no
+	// longer be tracked. Here we explicitly set them to nil so
+	// that they may be garbage collected.
 	for i := len(servers); i < len(t.c.servers); i++ {
 		t.c.servers[i] = nil
 	}

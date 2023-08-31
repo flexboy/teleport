@@ -28,17 +28,12 @@ import (
 
 // EICESendSSHPublicKeyClient describes the required methods to send an SSH Public Key to
 // an EC2 Instance.
-// This is is remains for 60 seconds and is removed afterwards.
 type EICESendSSHPublicKeyClient interface {
 	// SendSSHPublicKey pushes an SSH public key to the specified EC2 instance for use by the specified
 	// user. The key remains for 60 seconds. For more information, see Connect to your
 	// Linux instance using EC2 Instance Connect (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Connect-using-EC2-Instance-Connect.html)
 	// in the Amazon EC2 User Guide.
 	SendSSHPublicKey(ctx context.Context, params *ec2instanceconnect.SendSSHPublicKeyInput, optFns ...func(*ec2instanceconnect.Options)) (*ec2instanceconnect.SendSSHPublicKeyOutput, error)
-}
-
-type defaultEICESendSSHPublicKeyClient struct {
-	*ec2instanceconnect.Client
 }
 
 // NewEICESendSSHPublicKeyClient creates a EICESendSSHPublicKeyClient using AWSClientRequest.
@@ -48,9 +43,7 @@ func NewEICESendSSHPublicKeyClient(ctx context.Context, clientReq *AWSClientRequ
 		return nil, trace.Wrap(err)
 	}
 
-	return &defaultEICESendSSHPublicKeyClient{
-		Client: ec2instanceconnectClient,
-	}, nil
+	return ec2instanceconnectClient, nil
 }
 
 // SendSSHPublicKeyToEC2Request contains the required fields to request the upload of an SSH Public Key.
@@ -105,6 +98,11 @@ func sendSSHPublicKey(ctx context.Context, clt EICESendSSHPublicKeyClient, req S
 		return nil, trace.Wrap(err)
 	}
 
+	sshSigner, err := ssh.NewSignerFromKey(privKey)
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
 	pubKeySSH := string(ssh.MarshalAuthorizedKey(publicKey))
 	_, err = clt.SendSSHPublicKey(ctx,
 		&ec2instanceconnect.SendSSHPublicKeyInput{
@@ -113,11 +111,6 @@ func sendSSHPublicKey(ctx context.Context, clt EICESendSSHPublicKeyClient, req S
 			SSHPublicKey:   &pubKeySSH,
 		},
 	)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-
-	sshSigner, err := ssh.NewSignerFromKey(privKey)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}

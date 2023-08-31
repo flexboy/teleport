@@ -26,7 +26,7 @@ import (
 	"github.com/gravitational/teleport/api/types"
 )
 
-// ProxyGetter is a service that gets proxies.
+// ProxiesGetter is a service that gets proxies.
 type ProxiesGetter interface {
 	// GetProxies returns a list of registered proxies.
 	GetProxies() ([]types.Server, error)
